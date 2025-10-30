@@ -16,6 +16,7 @@
 - [EAV Tag](#eav-tag)
 - [Query factory](#query-factory)
 - [Usage with EasyAdmin and Forms](#usage-with-easyadmin-and-forms)
+- [Demo application](https://github.com/maxkain/eav-demo)
 
 ## Description
 
@@ -511,7 +512,7 @@ Here you pass attributes with values.
 
 ## Usage with EasyAdmin and Forms
 
-You may create CRUD for all entities with EasyAdmin tools. See the demo application. And you can use a `EavCollectionType` form type, which includes the bundle, and it's entry type `EavType`. You may use `EavFieldFactory` to create Easy Admin fields:
+You may create CRUD for all entities with EasyAdmin tools. See the [demo application](https://github.com/maxkain/eav-demo). And you can use a `EavCollectionType` form type, which includes the bundle, and it's entry type `EavType`. You may use `EavFieldFactory` to create Easy Admin fields:
 
 ```php
 namespace App\Controller\Admin\Product;
