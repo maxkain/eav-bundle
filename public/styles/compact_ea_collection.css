@@ -1,0 +1,20 @@
+.form-column .compact-ea-collection .form-fieldset {
+    box-shadow: none;
+}
+
+.compact-ea-collection .accordion-item:first-of-type > .accordion-header .accordion-button {
+    display: none;
+}
+
+.form-column .compact-ea-collection .form-fieldset-body.without-header {
+    padding: 0;
+}
+
+.compact-ea-collection.form-group.field-collection .field-collection-delete-button {
+    position: static;
+    float: right;
+}
+
+.compact-ea-collection.form-group.field-collection .accordion-button {
+    display: none;
+}

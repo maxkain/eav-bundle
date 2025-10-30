@@ -1,0 +1,30 @@
+{
+    "name": "maxkain/eav-bundle",
+    "description": "Implementation of EAV (Entity-Attribute-Value) pattern for PHP",
+    "type": "symfony-bundle",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+    "psr-4": {
+        "Maxkain\\EavBundle\\": "src/"
+    }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Maxim Kainov",
+            "email": "maxim.kainov@gmail.com"
+        }
+    ],
+    "suggest": {
+        "symfony/framework-bundle": "",
+        "symfony/dependency-injection": "",
+        "symfony/http-foundation": "",
+        "symfony/translation": "",
+        "symfony/form": "",
+        "symfony/twig-bundle": "",
+        "symfony/orm-pack": "",
+        "easycorp/easyadmin-bundle": ""
+    }
+}

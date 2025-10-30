@@ -1,0 +1,10 @@
+Entity not found: Сущность не найдена
+Attribute not found: Атрибут не найден
+Value not found: Значение не найдено
+Value should be array: Значение должно быть массивом
+Value should be scalar: Значание должно быть скаляром
+Entity type should be "{type}": Тип сущности должен быть "{type}"
+Attribute type should be "{type}": Тип атрибута должен быть "{type}"
+Value type should be "{type}": Тип значения должен быть "{type}"
+Value should not be empty: Значение не должно быть пустым
+Duplicated value: Значения повторяются
