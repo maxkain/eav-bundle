@@ -465,7 +465,7 @@ If you have different properties and different options in your entity with the s
 
 That's all, the `Category` is bound.
 
-If you want to include parent's categories attributes, simply, store them all in a dedicated ManyToMany field of your entity and fill the field by the setter of the main category property or by your service, controller, or by doctrine event listener. And don't forgive to set EAV property mapping.
+If you want to include parent's categories attributes, simply, store them all in a dedicated ManyToMany field of your entity and fill the field by the setter of the main category property or by your service, controller, or by doctrine event listener. And don't forget to set EAV property mapping.
 
 The `OrphanedEavsListener` is enabled by default. It works fast, but you can disable it by `enable_orphaned_eavs_listener` config of the bundle or by `setEnabled` method of the listener.
 
@@ -495,7 +495,7 @@ class MyService
         
         $this->eavQueryFactory->addEavFilters($qb, 'e', MyEav::class, [
         	777 => [111, 222],
-        	888 => [333, 444]
+        	888 => [333, new EavComparison('>', 10)]
         	// ...
         ]);
         
@@ -506,6 +506,7 @@ class MyService
         	333 => new EavComparison('LIKE', 'myValue%'),
         	222 => new EavExpression(':field LIKE '. $qb->createNamedParameter('myValue%'))
         	444 => new EavExpression(':field > 18 AND :field < 30')
+        	444 => new EavExpression(':field IN (' . $qb->createNamedParameter([111, 222, 333]) . ')')
         	// ...
         ]);
 		
@@ -518,10 +519,11 @@ class MyService
 
 ```
 
-Here you pass attributes with values. 
+Here you pass attributes with values.
 If you use `EavExpression`, ':field' placeholder will be replaced to the value field path.
-Don't forgive to escape user's input by Doctine's `createNamedParameter` function.
+Don't forget to escape user's input by Doctine's `createNamedParameter` function.
 If you use `EavComparison`, `value` argument will be escaped automatically.
+By default, all conditions use `AND` logic, but with `EavExpression` you may define any DQL condition.
 
 ## Usage with EasyAdmin and Forms
 

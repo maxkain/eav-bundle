@@ -143,7 +143,7 @@ class EavQueryFactory
     protected function resolveExpression(QueryBuilder $qb, string $eavValuePath, mixed $value): Expr\Comparison|string
     {
         if ($value instanceof EavExpression) {
-            return str_replace(':field', $eavValuePath, $value->getExpression());
+            return '('. str_replace(':field', $eavValuePath, $value->getExpression()) . ')';
         }
 
         $operator = '=';
