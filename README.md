@@ -477,7 +477,7 @@ You may use `EavQueryFactory`, like this:
 
 ```php
 use Doctrine\ORM\EntityManagerInterface;
-use Maxkain\EavBundle\Bridge\Doctrine\EavQueryFactory;
+use Maxkain\EavBundle\Bridge\Doctrine\Query\EavQueryFactory;
 use Maxkain\EavBundle\Query\EavExpression;
 use Maxkain\EavBundle\Query\EavComparison;
 
