@@ -3,6 +3,7 @@
 namespace Maxkain\EavBundle\Bridge\Doctrine;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query\Expr;
 use Doctrine\ORM\Query\Expr\Andx;
 use Doctrine\ORM\Query\Expr\Func;
 use Doctrine\ORM\Query\Expr\Orx;
@@ -13,6 +14,8 @@ use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
 use Maxkain\EavBundle\Contracts\Entity\Tag\EavAttributeWithTagsInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
 use Maxkain\EavBundle\Options\EavOptionsRegistry;
+use Maxkain\EavBundle\Query\EavComparison;
+use Maxkain\EavBundle\Query\EavExpression;
 
 class EavQueryFactory
 {
@@ -105,7 +108,7 @@ class EavQueryFactory
             $condition = $expr->andX(
                 $expr->eq($eavEntityPath, $entityIdPath),
                 $expr->eq($eavAttributePath, $qb->createNamedParameter($attribute)),
-                $expr->eq($eavValuePath, $qb->createNamedParameter($value))
+                $this->resolveExpression($qb, $eavValuePath, $value)
             );
 
             $mainCondition->add(
@@ -135,6 +138,21 @@ class EavQueryFactory
         }
 
         return $mainCondition;
+    }
+
+    protected function resolveExpression(QueryBuilder $qb, string $eavValuePath, mixed $value): Expr\Comparison|string
+    {
+        if ($value instanceof EavExpression) {
+            return str_replace(':field', $eavValuePath, $value->getExpression());
+        }
+
+        $operator = '=';
+        if ($value instanceof EavComparison) {
+            $operator = $value->getOperator();
+            $value = $value->getValue();
+        }
+
+        return new Expr\Comparison($eavValuePath, $operator, $qb->createNamedParameter($value));
     }
 
     /**

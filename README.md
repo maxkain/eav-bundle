@@ -478,6 +478,8 @@ You may use `EavQueryFactory`, like this:
 ```php
 use Doctrine\ORM\EntityManagerInterface;
 use Maxkain\EavBundle\Bridge\Doctrine\EavQueryFactory;
+use Maxkain\EavBundle\Query\EavExpression;
+use Maxkain\EavBundle\Query\EavComparison;
 
 class MyService
 {
@@ -500,6 +502,10 @@ class MyService
         $this->eavQueryFactory->addEavFilters($qb, 'e', MyAnotherEav::class, [
         	999 => 'myValue1',
         	555 => 'myValue2'
+        	111 => new EavComparison('>', 10),
+        	333 => new EavComparison('LIKE', 'myValue%'),
+        	222 => new EavExpression(':field LIKE '. $qb->createNamedParameter('myValue%'))
+        	444 => new EavExpression(':field > 18 AND :field < 30')
         	// ...
         ]);
 		
@@ -512,7 +518,10 @@ class MyService
 
 ```
 
-Here you pass attributes with values.
+Here you pass attributes with values. 
+If you use `EavExpression`, ':field' placeholder will be replaced to the value field path.
+Don't forgive to escape user's input by Doctine's `createNamedParameter` function.
+If you use `EavComparison`, `value` argument will be escaped automatically.
 
 ## Usage with EasyAdmin and Forms
 
