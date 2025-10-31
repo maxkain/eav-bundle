@@ -467,7 +467,11 @@ That's all, the `Category` is bound.
 
 If you want to include parent's categories attributes, simply, store them all in a dedicated ManyToMany field of your entity and fill the field by the setter of the main category property or by your service, controller, or by doctrine event listener. And don't forgive to set EAV property mapping.
 
+The `OrphanedEavsListener` is enabled by default. It works fast, but you can disable it by `enable_orphaned_eavs_listener` config of the bundle or by `setEnabled` method of the listener.
+
 ## Query factory
+
+> Subqueries (semi-joins) are much faster, then joins with group by, if many rows are needed to group.
 
 You may use `EavQueryFactory`, like this:
 
