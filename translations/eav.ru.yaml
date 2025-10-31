@@ -8,3 +8,4 @@ Attribute type should be "{type}": Тип атрибута должен быть
 Value type should be "{type}": Тип значения должен быть "{type}"
 Value should not be empty: Значение не должно быть пустым
 Duplicated value: Значения повторяются
+Duplicated attribute: Атрибуты повторяются

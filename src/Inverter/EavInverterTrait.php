@@ -64,6 +64,7 @@ trait EavInverterTrait
         $this->violations = [];
         $this->options = $options;
         $rows = [];
+        $this->inverterValidator->reset();
 
         foreach ($items as $index => $item) {
             if (is_array($item)) {
@@ -87,9 +88,7 @@ trait EavInverterTrait
      */
     protected function validateItem(mixed $entity, mixed $item, int $itemIndex): array
     {
-        $entityId = $entity instanceof EavInterface ? $entity->getId() : $entity;
-
-        return $this->inverterValidator->validateItem($entityId, $itemIndex,
+        return $this->inverterValidator->validateItem($entity, $itemIndex,
             $this->getItemAttribute($item), $this->getItemValueData($item), $this->options);
     }
 
