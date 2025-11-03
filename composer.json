@@ -26,5 +26,12 @@
         "symfony/twig-bundle": "",
         "symfony/orm-pack": "",
         "easycorp/easyadmin-bundle": ""
-    }
+    },
+    "keywords": [
+        "eav",
+        "php",
+        "symfony",
+        "doctrine",
+        "easyadmin"
+    ]
 }
