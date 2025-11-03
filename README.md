@@ -209,65 +209,65 @@ use Maxkain\EavBundle\Options\EavOptions;
 
 class MyService
 {
-	public function __construct(
-		private EavInverterInterface $eavInverter,
-	) {
-	}
-	
-	public myMethod()
-	{
-		// ...receive your $entity
-		
-		// then, define your data:
-		$myItems = [
-			new EavMultipleInputItem(
-				attribute: 1, 
-				values: ['test1', 'test2']
-			),
-			new EavMultipleInputItem(
-				attribute: 2,
-				values: ['test3', 'test4']
-			)
-		];
-				
-		// also, you can use arrays:
-		$myItems = [
-			[
-				'attribute': 1, 
-				'values': ['test1', 'test2']
-			),
-			[
-				'attribute': 2, 
-				'values': ['test3', 'test4']
-			]
-		];
-
-		// ...or pass value ids or `MyValue` entities, if you use enum values
-		
-		// set options:
-		$options = new EavOptions(
-			eavFqcn: MyEav::class,
-			entityFqcn: Product::class,
-			attributeFqcn: MyAttribute::class,
-			valueFqcn: MyValue::class, // if yo have enum value
-			multiple: true
-		);	
-
-		//	and call the inverter:
-		$eavInverter = $this->eavInverter;
-		$eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
-		if (!$eavInverter->isValid()) {
-			$violations = $eavInverter->getViolations();
-	
-			// ...set the response with violations
-			return $response;
-		}
-
-		$em->flush();
-
-		// ...set the response
-		return $response;
-	}
+    public function __construct(
+        private EavInverterInterface $eavInverter,
+    ) {
+    }
+    
+    public myMethod()
+    {
+        // ...receive your $entity
+        
+        // then, define your data:
+        $myItems = [
+            new EavMultipleInputItem(
+                attribute: 1, 
+                values: ['test1', 'test2']
+            ),
+            new EavMultipleInputItem(
+                attribute: 2,
+                values: ['test3', 'test4']
+            )
+        ];
+                
+        // also, you can use arrays:
+        $myItems = [
+            [
+                'attribute': 1, 
+                'values': ['test1', 'test2']
+            ],
+            [
+                'attribute': 2, 
+                'values': ['test3', 'test4']
+            ]
+        ];
+    
+        // ...or pass value ids or `MyValue` entities, if you use enum values
+        
+        // set options:
+        $options = new EavOptions(
+            eavFqcn: MyEav::class,
+            entityFqcn: Product::class,
+            attributeFqcn: MyAttribute::class,
+            valueFqcn: MyValue::class, // if yo have enum value
+            multiple: true
+        );	
+    
+        //	and call the inverter:
+        $eavInverter = $this->eavInverter;
+        $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
+        if (!$eavInverter->isValid()) {
+            $violations = $eavInverter->getViolations();
+    
+            // ...set the response with violations
+            return $response;
+        }
+    
+        $em->flush();
+    
+        // ...set the response
+        return $response;
+    }
 }
 ```
 
@@ -279,10 +279,10 @@ If you pass items as arrays, field names can be configured with `reverseProperty
 
 ```php
 new EavOptions(
-	reversePropertyMapping: new ReversePropertyMapping(
-		attribute: 'any_attribute_name',
-		values: 'any_values_name'
-	)
+    reversePropertyMapping: new ReversePropertyMapping(
+        attribute: 'any_attribute_name',
+        values: 'any_values_name'
+    )
 );
 ```
 
@@ -290,11 +290,11 @@ Also, we used default EAV entities property names. But you can change them by `p
 
 ```php
 new EavOptions(
-	propertyMapping: new PropertyMapping(
-		entity: 'product',
-		entityId: 'guid'
-		// and others...
-	)
+    propertyMapping: new PropertyMapping(
+        entity: 'product',
+        entityId: 'guid'
+        // and others...
+    )
 );
 ```
 
@@ -308,9 +308,9 @@ You can restrict input types to one of PHP types:
 
 ```php
 new EavOptions(
-	entityInputType: 'integer',
-	attributeInputType 'integer',
-	valueInputType: 'integer'
+    entityInputType: 'integer',
+    attributeInputType 'integer',
+    valueInputType: 'integer'
 );
 ```
 
@@ -337,16 +337,16 @@ class ProductConfigurator implements EavConfiguratorInterface
      */
     public function configure(): array
     {
-		return [
-			$options = new EavOptions(
-				eavFqcn: MyEav::class,
-				entityFqcn: Product::class,
-				attributeFqcn: MyAttribute::class,
-				valueFqcn: MyValue::class, // if yo have enum value
-				multiple: true
-			)
-		];
-	}
+        return [
+            new EavOptions(
+                eavFqcn: MyEav::class,
+                entityFqcn: Product::class,
+                attributeFqcn: MyAttribute::class,
+                valueFqcn: MyValue::class, // if yo have enum value
+                multiple: true
+            )
+        ];
+    }
 }
 ```
 
@@ -360,10 +360,10 @@ use Maxkain\EavBundle\Options\EavOptionsRegistry
 public function __construct(
 	private EavOptionsRegistry $optionsRegistry;
 ) {
-	$options = $optionsRegistry->get(MyEav::class);
-	
-	// or pass the string as option parameter to inverter or converter
-	$eavInverter->invert($entity, $myItems, $entity->getMyEavs(), MyEav::class);
+    $options = $optionsRegistry->get(MyEav::class);
+    
+    // or pass the string as option parameter to inverter or converter
+    $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), MyEav::class);
 }
 ```
 
@@ -450,7 +450,7 @@ And you need to add options:
 
 ```php
 new EavOptions(
-	// ...
+    // ...
     tagFqcn: Category::class,
     attributeTagFqcn: MyTag::class
     propertyMapping: new PropertyMapping( // If you have different name of your category field
@@ -486,35 +486,35 @@ class MyService
     public function __construct(
         private EntityManagerInterface $em,
         private EavQueryFactory $eavQueryFactory
-	) {
-	}
+    ) {
+    }
 	
-	pubic function myMethod(): array
-	{
+    public function myMethod(): array
+    {
     	$qb = $this->em->getRepository(Product::class)->createQueryBuilder('e')->select();
         
         $this->eavQueryFactory->addEavFilters($qb, 'e', MyEav::class, [
-        	777 => [111, 222],
-        	888 => [333, new EavComparison('>', 10)]
-        	// ...
+            777 => [111, 222],
+            888 => [333, new EavComparison('>', 10)]
+            // ...
         ]);
         
         $this->eavQueryFactory->addEavFilters($qb, 'e', MyAnotherEav::class, [
-        	999 => 'myValue1',
-        	555 => 'myValue2'
-        	111 => new EavComparison('>', 10),
-        	333 => new EavComparison('LIKE', 'myValue%'),
-        	222 => new EavExpression(':field LIKE '. $qb->createNamedParameter('myValue%'))
-        	444 => new EavExpression(':field > 18 AND :field < 30')
-        	444 => new EavExpression(':field IN (' . $qb->createNamedParameter([111, 222, 333]) . ')')
-        	// ...
+            999 => 'myValue1',
+            555 => 'myValue2'
+            111 => new EavComparison('>', 10),
+            333 => new EavComparison('LIKE', 'myValue%'),
+            222 => new EavExpression(':field LIKE '. $qb->createNamedParameter('myValue%'))
+            444 => new EavExpression(':field > 18 AND :field < 30')
+            777 => new EavExpression(':field IN (' . $qb->createNamedParameter([111, 222, 333]) . ')')
+            // ...
         ]);
 		
-		$result = $qb->getQuery()->getResult();
-		
-		// ...do something with result 
-		return $result;
-	}
+        $result = $qb->getQuery()->getResult();
+        
+        // ...do something with result 
+        return $result;
+    }
 }
 
 ```
@@ -524,6 +524,7 @@ If you use `EavExpression`, ':field' placeholder will be replaced to the value f
 Don't forget to escape user's input by Doctine's `createNamedParameter` function.
 If you use `EavComparison`, `value` argument will be escaped automatically.
 By default, all conditions use `AND` logic, but with `EavExpression` you may define any DQL condition.
+Also, you may use `createEavCondition` method for more complex logic.
 
 ## Usage with EasyAdmin and Forms
 
@@ -545,11 +546,11 @@ class ProductCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-		    $this->eavFieldFactory->create('myEavs', 'My attributes', MyEav::class),
-		    $this->eavFieldFactory->create('anotherMyEavs', 'Another attributes', AnotherMyEav::class)
-			//...
+            $this->eavFieldFactory->create('myEavs', 'My attributes', MyEav::class),
+            $this->eavFieldFactory->create('anotherMyEavs', 'Another attributes', AnotherMyEav::class)
+            //...
         ];
-	}
+    }
 }
 ```
 
@@ -580,14 +581,14 @@ CollectionField::new('values')->useEntryCrudForm()->renderExpanded()
     ->addCssClass('compact-ea-collection')
     ->setFormTypeOption('entry_options', [
     	'block_prefix' => 'compact_ea_collection_entry'
-	])
+    ])
 ```
 
 Errors of the `EavInverter` map to the form correctly. But if you try to validate the value field with Symfony validator by entity attributes, the errors will not be mapped correctly, because the form has another structure. For correctly mapping you may specify constraints directly in form entry options:
 
 ```php
 $this->eavFieldFactory->create('myEavs', null, MyEav::class, null, [], [
-	EavType::VALUE_CONSTRAINTS => [new Assert\Email()]
+    EavType::VALUE_CONSTRAINTS => [new Assert\Email()]
 ])
 ```
 
