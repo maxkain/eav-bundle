@@ -196,6 +196,12 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
         return $this->ignoreInputEmptyValue;
     }
 
+    public function setIgnoreInputEmptyValue(bool $ignoreInputEmptyValue): static
+    {
+        $this->ignoreInputEmptyValue = $ignoreInputEmptyValue;
+        return $this;
+    }
+
     public function getPropertyMapping(): PropertyMappingInterface
     {
         return $this->propertyMapping;
