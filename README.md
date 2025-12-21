@@ -39,8 +39,9 @@ You need PHP version >= 8.1.
 ```
 composer require maxkain/eav-bundle
 ```
+This bundle uses `AutoconfigureTag`, `Autowire` and `AutowireIterator` attributes of the Symfony service container. If you have old version of Symfony, and it does not support this attributes, you may write YAML config, for example, or configure it somehow different by yourself.
   
- ## Creating entities
+## Creating entities
  
 For example, you have `App\Entity\Product\Product` entity, and you want to create attribute for it. First, you need to create entities for EAV. It would be nice to create them with Maker bundle, but there is no such functionality for now. Let's create Attribute entity. It can be named as you want, `EnumAttribute`, `StringAttribute`, `MultiEnumAttribute`. But let it be named `MyAttribute`.
 
