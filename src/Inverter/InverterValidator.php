@@ -44,17 +44,15 @@ class InverterValidator
 
         $entityType = $options->getEntityInputType();
         if ($entityType && gettype($entityId) != $entityType) {
-            $violations[] = $this->createEntityTypeViolation(['entityType' => $entityType], []);
+            $violations[] = $this->createEntityTypeViolation(['type' => $entityType], []);
         }
 
         $attributeType = $options->getAttributeInputType();
         if ($attributeType && gettype($attributeId) != $attributeType) {
-            $violations[] = $this->createAttributeTypeViolation(['attributeType' => $attributeType], $attributePath);
+            $violations[] = $this->createAttributeTypeViolation(['type' => $attributeType], $attributePath);
         }
 
-        $violations = array_merge($violations, $this->checkValues($itemIndex, $inputValue, $options));
-
-        return $violations;
+        return array_merge($violations, $this->checkValues($itemIndex, $inputValue, $options));
     }
 
     protected function checkAttributeDuplicates(mixed $attributeId, string $attributeProperty, int $itemIndex): array
@@ -114,7 +112,7 @@ class InverterValidator
                         $violations[] = $this->createEmptyValueViolation([], $fullValuePath);
                     } else if ($valueType) {
                         if (gettype($value) != $valueType) {
-                            $violations[] = $this->createValueTypeViolation(['valueType' => $valueType], $fullValuePath);
+                            $violations[] = $this->createValueTypeViolation(['type' => $valueType], $fullValuePath);
                         }
                     }
                 }
@@ -122,7 +120,7 @@ class InverterValidator
                 $violations = array_merge($violations, $this->checkValueDuplicates($duplicateHashes, $valuePath));
             } else if ($valueType) {
                 if (gettype($inputValue) != $valueType) {
-                    $violations[] = $this->createValueTypeViolation(['valueType' => $valueType], $valuePath);
+                    $violations[] = $this->createValueTypeViolation(['type' => $valueType], $valuePath);
                 }
             }
         }
