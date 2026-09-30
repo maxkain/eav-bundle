@@ -26,8 +26,8 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
         private ?string $valueInputType = null,
         private bool $convertItemsToArrays = false,
         private bool $ignoreInputEmptyValue = true,
-        private PropertyMappingInterface $propertyMapping = new PropertyMapping(),
-        private ReversePropertyMappingInterface $reversePropertyMapping = new ReversePropertyMapping()
+        private PropertyMapping $propertyMapping = new PropertyMapping(),
+        private ReversePropertyMapping $reversePropertyMapping = new ReversePropertyMapping()
     ) {
     }
 
@@ -202,23 +202,23 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
         return $this;
     }
 
-    public function getPropertyMapping(): PropertyMappingInterface
+    public function getPropertyMapping(): PropertyMapping
     {
         return $this->propertyMapping;
     }
 
-    public function setPropertyMapping(PropertyMappingInterface $propertyMapping): static
+    public function setPropertyMapping(PropertyMapping $propertyMapping): static
     {
         $this->propertyMapping = $propertyMapping;
         return $this;
     }
 
-    public function getReversePropertyMapping(): ReversePropertyMappingInterface
+    public function getReversePropertyMapping(): ReversePropertyMapping
     {
         return $this->reversePropertyMapping;
     }
 
-    public function setReversePropertyMapping(ReversePropertyMappingInterface $reversePropertyMapping): static
+    public function setReversePropertyMapping(ReversePropertyMapping $reversePropertyMapping): static
     {
         $this->reversePropertyMapping = $reversePropertyMapping;
         return $this;

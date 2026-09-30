@@ -6,7 +6,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use Maxkain\EavBundle\Bridge\Form\EavCollectionType;
 use Maxkain\EavBundle\Bridge\Form\EavType;
-use Maxkain\EavBundle\Options\EavOptions;
+use Maxkain\EavBundle\Options\EavOptionsInterface;
 use Maxkain\EavBundle\Options\EavOptionsRegistry;
 
 final class EavFieldFactory
@@ -19,15 +19,12 @@ final class EavFieldFactory
     public function create(
         string $name,
         mixed $label,
-        EavOptions|string $eavOptions,
+        EavOptionsInterface|string $eavOptions,
         ?string $formType = null,
         array $formOptions = [],
         array $formEntryOptions = []
     ): FieldInterface {
-        if (is_string($eavOptions)) {
-            $eavOptions = $this->optionsRegistry->get($eavOptions);
-        }
-
+        $eavOptions = $this->optionsRegistry->resolve($eavOptions);
         $eavOptions->setConvertItemsToArrays(true);
 
         $formType = $formType ?? EavCollectionType::class;

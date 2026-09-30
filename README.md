@@ -28,7 +28,7 @@ Main features:
 2. Binding attributes to one or to many categories or tags. For example, you want to show certain attributes of product only for one or more product categories. Also, you can include attributes of parent categories.
 3. One attribute can be associated with many types of entities and tags.
 4. Converting and inverting EAV to or from database and client side. Internal input validation.
-5. Factory to help you create queries for filtering your entities by attributes with tag bindings checking.
+5. Factory to help you create queries for filtering and sorting your entities by attributes with tag bindings checking.
 6. Listener, that checks modified tags, attributes, entities and removes orphaned EAVs from database.
 7. Ready to use CRUD user interface for EAV, based on Symfony Forms and integrated with EasyAdmin.
 
@@ -117,11 +117,15 @@ class MyEav implements EavInterface
 }
 ```
 
-There is a `string` value, but it may be any of scalar types. If you want singular values, change `UniqueConstraint` fields to `['entity', 'attribute']`. 
+There is a `string` value, but it may be any of scalar types. If you want singular values, change `UniqueConstraint` fields to `['entity', 'attribute']`.
+
+> Unique id index may cause a slowdown with heavy write. You may use regular indexes.
+> Also, you may use bigint for primary id or any other, like UUIDv7 or ULID.
+> And you may assign names to indexes, it may be convenient for debug.
 
 ### Value
 
-If you want enum values, you need to create entity for the value field.
+If you need enum values, you should create entity for the value field.
 
 ```php
 namespace App\Entity\Product\Attribute;
@@ -250,7 +254,7 @@ class MyService
             eavFqcn: MyEav::class,
             entityFqcn: Product::class,
             attributeFqcn: MyAttribute::class,
-            valueFqcn: MyValue::class, // if yo have enum value
+            valueFqcn: MyValue::class, // if you have enum value
             multiple: true
         );	
     
@@ -343,7 +347,7 @@ class ProductConfigurator implements EavConfiguratorInterface
                 eavFqcn: MyEav::class,
                 entityFqcn: Product::class,
                 attributeFqcn: MyAttribute::class,
-                valueFqcn: MyValue::class, // if yo have enum value
+                valueFqcn: MyValue::class, // if you have enum value
                 multiple: true
             )
         ];
@@ -424,9 +428,9 @@ private bool $forAllTags = false;
 Your `Categoty` should  implement `EavTagInterface`, your `Product` should implement `EavEntityWithTagsInterface` and your attribute should implement `EavAttributeWithTagsInterface`. The method `getEavTags` of your `Product` and `MyAttribute` should look, like this:
 
 ```php
-public function getEavTags(string $tagFqcn): iterable
+public function getEavTags(string $tagKey): iterable
 {
-    return match ($tagFqcn) {
+    return match ($tagKey) {
         Category::class => isset($this->category) ? [$this->category] : [],
         default => []
     };
@@ -436,9 +440,9 @@ public function getEavTags(string $tagFqcn): iterable
 If you have `ManyToMany` Categories, then, like this:
 
 ```php
-public function getEavTags(string $tagFqcn): iterable
+public function getEavTags(string $tagKey): iterable
 {
-    return match ($tagFqcn) {
+    return match ($tagKey) {
         Category::class => $this->categories,
         default => []
     };
@@ -493,7 +497,8 @@ class MyService
     public function myMethod(): array
     {
     	$qb = $this->em->getRepository(Product::class)->createQueryBuilder('e')->select();
-        
+
+        // attribute id => values (or value ids for enum EAV)
         $this->eavQueryFactory->addEavFilters($qb, 'e', MyEav::class, [
             777 => [111, 222],
             888 => [333, new EavComparison('>', 10)]
@@ -505,8 +510,8 @@ class MyService
             555 => 'myValue2'
             111 => new EavComparison('>', 10),
             333 => new EavComparison('LIKE', 'myValue%'),
-            222 => new EavExpression(':field LIKE '. $qb->createNamedParameter('myValue%'))
-            444 => new EavExpression(':field > 18 AND :field < 30')
+            222 => new EavExpression(':fieldTitle LIKE '. $qb->createNamedParameter('myValue%'))
+            444 => new EavExpression(':fieldTitle > 18 AND :field < 30')
             777 => new EavExpression(':field IN (' . $qb->createNamedParameter([111, 222, 333]) . ')')
             // ...
         ]);
@@ -525,7 +530,52 @@ If you use `EavExpression`, ':field' placeholder will be replaced to the value f
 Don't forget to escape user's input by Doctine's `createNamedParameter` function.
 If you use `EavComparison`, `value` argument will be escaped automatically.
 By default, all conditions use `AND` logic, but with `EavExpression` you may define any DQL condition.
+You may customize `OR` logic by setting to `true` flags `orValueLogic`, `orAttributeLogic` and `orEavLogic`.
 Also, you may use `createEavCondition` method for more complex logic.
+
+If value is enum, an additional join is applied with `EavValue` entity and the `:field` placeholder equals to value id. Use a `:fieldTitle` placeholder for the real value. 
+If you don't use `EavExpression` and comparison is not '=', then the `:fieldTitle` placeholder is applied automatically.
+
+You can add the value to select:
+
+```php
+// attribute id => values
+$myEavFilter = [
+    22 => [212, 220]
+];
+
+// selects the value or value title (if enum) of attribute 22
+// if there are multiple values, then MIN(:value) is selected by default
+$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class);
+
+// you may customize `select` and `as` expressions
+// `as` expression by default has doctrine's option `HIDDEN`, so, the value is selected, but not hydrated
+// 'attributeName' placeholder generates automatically, but you can change it  
+$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class,
+    // default values:
+    select: 'MIN(:value)',
+    as: 'HIDDEN :attributeName'
+);
+// the query will be like this:
+// 'SELECT e, (SELECT MIN(:value) FROM ...) AS HIDDEN :attributeName FROM ...'
+
+// get the generated attribute name,
+// it looks like 'attribute_0_22', where 0 is eav options index
+$attribute22Name = $eavQueryFactory->getAttributeName(MyEav::class, 22);
+
+// add order by it as by regular column
+$qb->addOrderBy($attribute22Name, 'ASC');
+
+//or simply use any other attribute name
+$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class,
+    select: 'MAX(:value)',
+    as: 'HIDDEN myColumn'
+);
+$qb->addOrderBy('myColumn', 'DESC');
+
+// restricts selected values to values from the list $myEavFilter[22]
+$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class, $myEavFilter[22]);
+```
 
 ## Usage with EasyAdmin and Forms
 
@@ -592,7 +642,9 @@ $this->eavFieldFactory->create('myEavs', null, MyEav::class, null, [], [
     EavType::VALUE_CONSTRAINTS => [new Assert\Email()]
 ])
 ```
+It is obvious, that all attributes can not be email addresses.
+So, if you need, you should create your own validator's constraint, which can process various types of fields.  
 
-And there are other options, you can pass.
+And there are other options, you can pass, see the factory's code.
 
 If you use EAV tag, the tag field should be earlier, then EAV properties, in the fields order. This is necessary for tags checker could read this field.

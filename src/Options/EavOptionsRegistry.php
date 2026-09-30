@@ -2,9 +2,10 @@
 
 namespace Maxkain\EavBundle\Options;
 
+use Maxkain\EavBundle\Inverter\Options\InverterOptionsResolverInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
-class EavOptionsRegistry
+class EavOptionsRegistry implements InverterOptionsResolverInterface
 {
     protected int $index = 0;
 
@@ -65,9 +66,17 @@ class EavOptionsRegistry
         return $this->options[$eavKey] ?? null;
     }
 
-    public function resolve(EavOptionsInterface|string $options): ?EavOptionsInterface
+    /**
+     * @param EavOptionsInterface|string $options
+     */
+    public function resolve(mixed $options): ?EavOptionsInterface
     {
-        return is_string($options) ? $this->get($options) : $options;
+        $options = is_string($options) ? $this->get($options) : $options;
+        if (!$options) {
+            throw new \InvalidArgumentException();
+        }
+
+        return $options;
     }
 
     /**

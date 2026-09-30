@@ -3,7 +3,7 @@
 namespace Maxkain\EavBundle\Inverter;
 
 use Maxkain\EavBundle\Attribute\AttributeFinder;
-use Maxkain\EavBundle\Options\EavOptionsRegistry;
+use Maxkain\EavBundle\Inverter\Options\InverterOptionsResolverInterface;
 use Maxkain\EavBundle\Utils\CollectionSetter\CollectionSetter;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Inverter\Options\InverterOptionsInterface;
@@ -16,7 +16,7 @@ class EavInverter implements EavInverterInterface
         protected CollectionSetter $collectionSetter,
         protected InverterValidator $inverterValidator,
         protected AttributeFinder $attributeFinder,
-        protected EavOptionsRegistry $optionsRegistry,
+        protected InverterOptionsResolverInterface $optionsResolver,
         protected RowInverter $rowInverter
     ) {
     }

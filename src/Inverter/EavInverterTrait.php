@@ -3,7 +3,7 @@
 namespace Maxkain\EavBundle\Inverter;
 
 use Maxkain\EavBundle\Attribute\AttributeFinder;
-use Maxkain\EavBundle\Options\EavOptionsRegistry;
+use Maxkain\EavBundle\Inverter\Options\InverterOptionsResolverInterface;
 use Maxkain\EavBundle\Utils\CollectionSetter\CollectionSetter;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Inverter\Options\InverterOptionsInterface;
@@ -21,7 +21,7 @@ trait EavInverterTrait
         protected CollectionSetter $collectionSetter,
         protected InverterValidator $inverterValidator,
         protected AttributeFinder $attributeFinder,
-        protected EavOptionsRegistry $optionsRegistry
+        protected InverterOptionsResolverInterface $optionsResolver
     ) {
     }
 
@@ -60,7 +60,7 @@ trait EavInverterTrait
      */
     protected function invertToArray(mixed $entity, array $items, InverterOptionsInterface|string $options): array
     {
-        $options = $this->optionsRegistry->resolve($options);
+        $options = $this->optionsResolver->resolve($options);
         $this->violations = [];
         $this->options = $options;
         $rows = [];
@@ -94,7 +94,7 @@ trait EavInverterTrait
 
     public function findAllowedAttributes(mixed $entity, InverterOptionsInterface|string $options): array
     {
-        $options = $this->optionsRegistry->resolve($options);
+        $options = $this->optionsResolver->resolve($options);
 
         return $this->attributeFinder->findAllowed($entity, $options);
     }

@@ -28,13 +28,14 @@ class EavTagQueryFactory
         string $entityAlias,
         mixed $attribute,
         EavOptionsInterface $options,
+        string $aliasPrefix = ''
     ): Orx {
         $tagConditions = new Orx();
         $options = $this->optionsRegistry->getByEav($options->getEavFqcn());
         $i = 0;
 
         foreach ($options as $option) {
-            $tagCondition = $this->createTagCondition($qb, $entityAlias, $attribute, $option, $i);
+            $tagCondition = $this->createTagCondition($qb, $entityAlias, $attribute, $option, $i, $aliasPrefix);
             if ($tagCondition) {
                 $tagConditions->add($tagCondition);
                 $i++;
@@ -52,7 +53,8 @@ class EavTagQueryFactory
         string $entityAlias,
         mixed $attribute,
         EavOptionsInterface $options,
-        int $index = 0
+        int $index = 0,
+        string $aliasPrefix = ''
     ): ?Func {
         $em = $this->em;
         $mapping = $options->getPropertyMapping();
@@ -64,11 +66,11 @@ class EavTagQueryFactory
         if ($attribute instanceof EavAttributeWithTagsInterface
             && !$attribute->isForAllEavTags($options->getTagKey())
         ) {
-            $attributeTagQb = $this->createAttributeTagQb($attribute, $qb, $options, $index);
+            $attributeTagQb = $this->createAttributeTagQb($attribute, $qb, $options, $index, $aliasPrefix);
             $expr = $attributeTagQb->expr();
 
             if ($options->isMultipleTags()) {
-                $innerEntityQb = $this->createInnerEntityQb($entityIdPath, $attribute, $attributeTagQb, $options, $index);
+                $innerEntityQb = $this->createInnerEntityQb($entityIdPath, $attribute, $attributeTagQb, $options, $index, $aliasPrefix);
                 $tagCondition = $expr->exists($innerEntityQb->getDQL());
             } else {
                 $tagPath = $entityAlias . '.' . $mapping->getEntityTag();
@@ -86,11 +88,12 @@ class EavTagQueryFactory
         mixed $attribute,
         QueryBuilder $mainQb,
         EavOptionsInterface $options,
-        int $index = 0
+        int $index = 0,
+        string $aliasPrefix = ''
     ): QueryBuilder {
         $mapping = $options->getPropertyMapping();
         $attributeTagFqcn = $options->getAttributeTagFqcn();
-        $attributeTagAlias = $this->aliasGenerator->generate('attributeTag', $options->getIndex(), $attribute, $index);
+        $attributeTagAlias = $this->aliasGenerator->generate($aliasPrefix . 'attributeTag', $options->getIndex(), $attribute, $index);
         $attributeTagTagPath = $attributeTagAlias . '.' . $mapping->getAttributeTagTag();
         $attributeTagAttributePath = $attributeTagAlias . '.' . $mapping->getAttributeTagAttribute();
 
@@ -117,12 +120,13 @@ class EavTagQueryFactory
         mixed $attribute,
         QueryBuilder $attributeTagQb,
         EavOptionsInterface $options,
-        int $index = 0
+        int $index = 0,
+        string $aliasPrefix = ''
     ): QueryBuilder {
         $mapping = $options->getPropertyMapping();
-        $innerEntityAlias = $this->aliasGenerator->generate('innerEntity', $options->getIndex(), $attribute, $index);
+        $innerEntityAlias = $this->aliasGenerator->generate($aliasPrefix . 'innerEntity', $options->getIndex(), $attribute, $index);
         $innerEntityIdPath = $innerEntityAlias . '.' . $mapping->getEntityId();
-        $innerEntityTagAlias = $this->aliasGenerator->generate('innerTag', $options->getIndex(), $attribute, $index);
+        $innerEntityTagAlias = $this->aliasGenerator->generate($aliasPrefix . 'innerTag', $options->getIndex(), $attribute, $index);
         $innerEntityTagPath = $innerEntityAlias . '.' . $mapping->getEntityTags();
 
         $innerEntityQb = $this->em->getRepository($options->getEntityFqcn())

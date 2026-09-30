@@ -9,5 +9,5 @@ interface EavEntityWithTagsInterface extends EavEntityInterface
     /**
      * @return iterable<EavTagInterface>
      */
-    public function getEavTags(string $tagFqcn): iterable;
+    public function getEavTags(string $tagKey): iterable;
 }

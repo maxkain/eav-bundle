@@ -40,15 +40,17 @@ class EavType extends AbstractType
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefaults([
-            self::EAV_OPTIONS => null,
-            self::VALUE_TYPE => null,
-            self::VALUES_TYPE => null,
-            self::VALUE_OPTIONS => [],
-            self::VALUE_CONSTRAINTS => [],
-            self::EA_AUTOCOMPLETE => false,
-        ])->setRequired([self::EAV_OPTIONS])
-        ->setAllowedTypes(self::EAV_OPTIONS, EavOptionsInterface::class);
+        $resolver
+            ->setDefaults([
+                self::EAV_OPTIONS => null,
+                self::VALUE_TYPE => null,
+                self::VALUES_TYPE => null,
+                self::VALUE_OPTIONS => [],
+                self::VALUE_CONSTRAINTS => [],
+                self::EA_AUTOCOMPLETE => false,
+            ])
+            ->setRequired([self::EAV_OPTIONS])
+            ->setAllowedTypes(self::EAV_OPTIONS, EavOptionsInterface::class);
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
