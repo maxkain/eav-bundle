@@ -2,10 +2,9 @@
 
 namespace Maxkain\EavBundle\Options;
 
-use Maxkain\EavBundle\Inverter\Options\InverterOptionsResolverInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
-class EavOptionsRegistry implements InverterOptionsResolverInterface
+class EavOptionsRegistry implements EavOptionsResolverInterface
 {
     protected int $index = 0;
 
@@ -20,6 +19,9 @@ class EavOptionsRegistry implements InverterOptionsResolverInterface
 
     /** @var array<string, array<string, EavOptionsInterface>> */
     protected array $optionsByEav = [];
+
+    /** @var array<string, array<string, EavOptionsInterface>> */
+    protected array $optionsByTag = [];
 
     /**
      * @param iterable<EavConfiguratorInterface> $configurators
@@ -57,6 +59,9 @@ class EavOptionsRegistry implements InverterOptionsResolverInterface
         $this->optionsByAttribute[$options->getAttributeFqcn()][$eavKey] = $options;
         $this->optionsByEntity[$options->getEntityFqcn()][$eavKey] = $options;
         $this->optionsByEav[$options->getEavFqcn()][$eavKey] = $options;
+        foreach ($options->getTagOptions() as $tagOption) {
+            $this->optionsByTag[$tagOption->getTagFqcn()][$eavKey] = $options;
+        }
 
         return $options;
     }
@@ -67,13 +72,13 @@ class EavOptionsRegistry implements InverterOptionsResolverInterface
     }
 
     /**
-     * @param EavOptionsInterface|string $options
+     * @param EavOptionsInterface|string $options Object or eavFqcn or eavKey
      */
-    public function resolve(mixed $options): ?EavOptionsInterface
+    public function resolve(EavOptionsInterface|string $options): EavOptionsInterface
     {
         $options = is_string($options) ? $this->get($options) : $options;
         if (!$options) {
-            throw new \InvalidArgumentException();
+            throw new EavOptionsRegistryException('Options not found.');
         }
 
         return $options;
@@ -109,5 +114,21 @@ class EavOptionsRegistry implements InverterOptionsResolverInterface
     public function getByEav(string $eavFqcn): array
     {
         return $this->optionsByEav[$eavFqcn] ?? [];
+    }
+
+    /**
+     * @return array<string, EavOptionsInterface>
+     */
+    public function getByTag(string $tagFqcn): array
+    {
+        return $this->optionsByTag[$tagFqcn] ?? [];
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getAllEavFqcns(): array
+    {
+        return array_keys($this->optionsByEav);
     }
 }

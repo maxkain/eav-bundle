@@ -6,10 +6,16 @@ use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 
 class AliasGenerator
 {
-    public function generate(string $name, int $eavIndex, mixed $attribute, mixed $suffix = null): string
+    public function generate(string $name, int $eavIndex, mixed $attribute = null, mixed $suffix = null): string
     {
-        $attributeId = $attribute instanceof EavAttributeInterface ? $attribute->getId() : $attribute;
-        $alias = $name . '_' . $eavIndex . '_' . $attributeId;
+        $attribute = $attribute instanceof EavAttributeInterface ? $attribute->getId() : $attribute;
+        $attribute = $attribute instanceof QueryFieldPath ? null : $attribute;
+        $alias = $name . '_' . $eavIndex;
+
+        if (isset($attribute)) {
+            $alias .= '_' . $attribute;
+        }
+
         if (isset($suffix)) {
             $alias .= '_' . $suffix;
         }

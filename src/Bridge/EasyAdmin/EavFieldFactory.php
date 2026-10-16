@@ -4,8 +4,8 @@ namespace Maxkain\EavBundle\Bridge\EasyAdmin;
 
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use Maxkain\EavBundle\Bridge\Form\EavCollectionType;
-use Maxkain\EavBundle\Bridge\Form\EavType;
+use Maxkain\EavBundle\Bridge\Symfony\Form\EavCollectionType;
+use Maxkain\EavBundle\Bridge\Symfony\Form\EavType;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
 use Maxkain\EavBundle\Options\EavOptionsRegistry;
 

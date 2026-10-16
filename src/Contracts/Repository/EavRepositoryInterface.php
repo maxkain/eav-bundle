@@ -2,9 +2,11 @@
 
 namespace Maxkain\EavBundle\Contracts\Repository;
 
-interface EavRepositoryInterface
+use Maxkain\EavBundle\Contracts\Entity\EavInterface;
+
+/**
+ * @implements BaseRepositoryInterface<EavInterface>
+ */
+interface EavRepositoryInterface extends BaseRepositoryInterface
 {
-    public function findOneBy(string $fqcn, array $criteria, ?array $orderBy = null): ?object;
-    public function findBy(string $fqcn, array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array;
-    public function findAll(string $fqcn): array;
 }

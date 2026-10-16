@@ -9,13 +9,13 @@ use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
 use Maxkain\EavBundle\Options\EavOptionsRegistry;
+use Maxkain\EavBundle\Options\EavOptionsResolverInterface;
 use Maxkain\EavBundle\Query\EavComparison;
 use Maxkain\EavBundle\Query\EavExpression;
 
 class EavQueryFactory
 {
     public function __construct(
-        protected EavOptionsRegistry $optionsRegistry,
         protected ConditionFactory $conditionFactory,
         protected ValueSelectFactory $valueSelectFactory,
         protected ExpressionResolver $expressionResolver
@@ -28,17 +28,18 @@ class EavQueryFactory
     public function addEavFilters(
         QueryBuilder $qb,
         string $entityAlias,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         array $attributeValues,
         bool $tagConditionEnabled = true,
-        bool $orValueLogic = false,
-        bool $orAttributeLogic = false,
-        bool $orEavLogic = false
-    ): QueryBuilder {
+        bool $orValueLogic = true,
+        bool $orAttributeLogic = false
+    ): static {
         $condition = $this->createEavFilters($qb, $entityAlias, $options, $attributeValues,
             $tagConditionEnabled, $orValueLogic, $orAttributeLogic);
 
-        return $orEavLogic ? $qb->orWhere($condition) : $qb->andWhere($condition);
+        $qb->andWhere($condition);
+
+        return $this;
     }
 
     /**
@@ -47,10 +48,10 @@ class EavQueryFactory
     public function createEavFilters(
         QueryBuilder $qb,
         string $entityAlias,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         array $attributeValues,
         bool $tagConditionEnabled = true,
-        bool $orValueLogic = false,
+        bool $orValueLogic = true,
         bool $orAttributeLogic = false
     ): Andx|Orx {
         $expr = $qb->expr();
@@ -72,10 +73,10 @@ class EavQueryFactory
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value,
         bool $tagConditionEnabled = true,
-        bool $orValueLogic = false
+        bool $orValueLogic = true
     ): Andx {
         return $this->conditionFactory->createEavCondition($qb, $entityAlias, $attribute, $options, $value,
             $tagConditionEnabled, $orValueLogic);
@@ -89,13 +90,16 @@ class EavQueryFactory
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value = null,
         bool $tagConditionEnabled = true,
         string $select = 'MIN(:value)',
         string $as = 'HIDDEN :attributeName'
-    ): QueryBuilder {
-        return $this->valueSelectFactory->addValueSelect($qb, $entityAlias, $attribute, $options, $value, $tagConditionEnabled, $select, $as);
+    ): static {
+        $this->valueSelectFactory->addValueSelect($qb, $entityAlias, $attribute, $options, $value,
+            $tagConditionEnabled, $select, $as);
+
+        return $this;
     }
 
     /**
@@ -106,19 +110,25 @@ class EavQueryFactory
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value = null,
         bool $tagConditionEnabled = true,
         string $select = 'MIN(:value)'
     ): QueryBuilder {
-        return $this->valueSelectFactory->create($qb, $entityAlias, $attribute, $options, $value, $tagConditionEnabled, $select);
+        return $this->valueSelectFactory->createQb($qb, $entityAlias, $attribute, $options, $value,
+            $tagConditionEnabled, $select);
     }
 
     /**
      * @param scalar|EavAttributeInterface $attribute
      */
-    public function getAttributeName(EavOptionsInterface|string $options, mixed $attribute): string
+    public function getSelectAttributeName(EavOptionsInterface $options, mixed $attribute): string
     {
         return $this->valueSelectFactory->getAttributeName($options, $attribute);
+    }
+
+    public function getQueryBuilder(QueryBuilder $qb): QueryBuilder
+    {
+        return $qb;
     }
 }

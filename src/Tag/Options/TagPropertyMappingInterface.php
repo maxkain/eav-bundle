@@ -1,6 +1,6 @@
 <?php
 
-namespace Maxkain\EavBundle\Options;
+namespace Maxkain\EavBundle\Tag\Options;
 
 interface TagPropertyMappingInterface
 {

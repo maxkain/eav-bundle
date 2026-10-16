@@ -5,14 +5,13 @@ namespace Maxkain\EavBundle\Converter;
 use Maxkain\EavBundle\Converter\Options\ConverterOptionsInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
-use Maxkain\EavBundle\Attribute\AttributeChecker;
+use Maxkain\EavBundle\AttributeChecker\AttributeChecker;
 
 class EavConverter implements EavConverterInterface
 {
-    protected ConverterOptionsInterface $options;
-
     public function __construct(
         protected AttributeChecker $attributeChecker,
+        protected OutputItemNormalizer $outputItemNormalizer
     ) {
     }
 
@@ -22,19 +21,19 @@ class EavConverter implements EavConverterInterface
      */
     public function convert(iterable $eavs, ConverterOptionsInterface $options): array
     {
-        $this->options = $options;
         $items = [];
 
         foreach ($eavs as $eav) {
-            if ($this->attributeChecker->check($eav->getEntity(), $eav->getAttribute())) {
+            if ($this->attributeChecker->check($eav->getEntity(), $eav->getAttribute(), $options)) {
                 $attributeId = $eav->getAttribute()->getId();
                 $attributeName = $eav->getAttribute()->getName();
-                $items[$attributeId] = $items[$attributeId] ?? $this->createOutputItem($attributeId, $attributeName);
+                $items[$attributeId] = $items[$attributeId]
+                    ?? $this->createOutputItem($attributeId, $attributeName, $options);
                 $items[$attributeId] = $this->convertEav($eav, $items[$attributeId]);
             }
         }
 
-        return $this->prepareOutput($items);
+        return $this->prepareOutput($items, $options);
     }
 
     protected function convertEav(
@@ -66,8 +65,9 @@ class EavConverter implements EavConverterInterface
     protected function createOutputItem(
         mixed $attributeId,
         string $attributeName,
+        ConverterOptionsInterface $options
     ): EavSingularOutputItem|EavMultipleOutputItem {
-        return $this->options->isMultiple()
+        return $options->isMultiple()
             ? new EavMultipleOutputItem($attributeId, $attributeName, [], [])
             : new EavSingularOutputItem($attributeId, $attributeName, null, null);
     }
@@ -76,44 +76,18 @@ class EavConverter implements EavConverterInterface
      * @param array<EavSingularOutputItem|EavMultipleOutputItem> $items
      * @return array<EavSingularOutputItem|EavMultipleOutputItem|array>
      */
-    protected function prepareOutput(array $items): array
+    protected function prepareOutput(array $items, ConverterOptionsInterface $options): array
     {
-        $options = $this->options;
         $resultItems = [];
 
         foreach ($items as $item) {
             if ($options->isConvertItemsToArrays()) {
-                $resultItems[] = $this->normalizeItem($item);
+                $resultItems[] = $this->outputItemNormalizer->normalize($item, $options);
             } else {
                 $resultItems[] = $item;
             }
         }
 
         return $resultItems;
-    }
-
-    protected function normalizeItem(EavSingularOutputItem|EavMultipleOutputItem $item): array
-    {
-        $options = $this->options;
-        $reverseMapping = $options->getReversePropertyMapping();
-
-        if ($item instanceof EavMultipleOutputItem) {
-            $valueKey = $reverseMapping->getValues();
-            $valueTitleKey = $reverseMapping->getValueTitles();
-            $value = $item->values;
-            $valueTitle = $item->valueTitles;
-        } else {
-            $valueKey = $reverseMapping->getValue();
-            $valueTitleKey = $reverseMapping->getValueTitle();
-            $value = $item->value;
-            $valueTitle = $item->valueTitle;
-        }
-
-        return [
-            $reverseMapping->getAttribute() => $item->attribute,
-            $reverseMapping->getAttributeName() => $item->attributeName,
-            $valueKey => $value,
-            $valueTitleKey => $valueTitle
-        ];
     }
 }

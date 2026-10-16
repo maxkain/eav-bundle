@@ -2,143 +2,77 @@
 
 namespace Maxkain\EavBundle\Inverter;
 
-use Maxkain\EavBundle\Attribute\AttributeFinder;
-use Maxkain\EavBundle\Inverter\Options\InverterOptionsResolverInterface;
-use Maxkain\EavBundle\Utils\CollectionSetter\CollectionSetter;
+use Maxkain\EavBundle\AttributeChecker\AttributeChecker;
+use Maxkain\EavBundle\Inverter\CollectionSetter\CollectionSetter;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Inverter\Options\InverterOptionsInterface;
 
 class EavInverter implements EavInverterInterface
 {
-    use EavInverterTrait;
-
     public function __construct(
         protected CollectionSetter $collectionSetter,
         protected InverterValidator $inverterValidator,
-        protected AttributeFinder $attributeFinder,
-        protected InverterOptionsResolverInterface $optionsResolver,
-        protected RowInverter $rowInverter
+        protected InputItemDenormalizer $inputItemDenormalizer,
+        protected InverterProcessor $inverterProcessor,
+        protected AttributeChecker $attributeChecker,
     ) {
     }
 
     /**
      * @param array<EavSingularInputItem|EavMultipleInputItem|array> $items
      * @param iterable<EavInterface> $eavs Collection of Eav entities.
-     * @return iterable<EavInterface> Collection of Eav entities.
      */
     public function invert(
         mixed $entity,
         array $items,
         iterable $eavs,
-        InverterOptionsInterface|string $options,
-        bool $withAddOnly = false
-    ): iterable {
-        if ($withAddOnly) {
-            return $this->add($entity, $items, $eavs, $options);
+        InverterOptionsInterface $options,
+        bool $addOnly = false
+    ): InverterOutput {
+        $output = $this->invertToArray($entity, $items, $options);
+        if ($addOnly) {
+            $orphanedEavsChecker = function(EavInterface $eav) use ($options) : bool {
+                return $this->attributeChecker->check($eav->getEntity(), $eav->getAttribute(), $options);
+            };
+
+            $output->eavs = $this->collectionSetter->add($output->eavs, $eavs, $orphanedEavsChecker);
+            return $output;
         }
 
-        return $this->set($entity, $items, $eavs, $options);
-    }
+        $output->eavs = $this->collectionSetter->set($output->eavs, $eavs);
 
-    protected function denormalizeInputItem(array $rawItem): EavSingularInputItem|EavMultipleInputItem
-    {
-        $options = $this->options;
-        $reverseMapping = $options->getReversePropertyMapping();
-
-        if ($options->isMultiple()) {
-            return new EavMultipleInputItem(
-                $rawItem[$reverseMapping->getAttribute()],
-                $rawItem[$reverseMapping->getValues()]
-            );
-        }
-
-        return new EavSingularInputItem(
-            $rawItem[$reverseMapping->getAttribute()],
-            $rawItem[$reverseMapping->getValue()]
-        );
+        return $output;
     }
 
     /**
-     * @param scalar $entity
-     * @param EavSingularInputItem|EavMultipleInputItem $item
-     * @return array<EavInterface>
+     * @param array<EavSingularInputItem|EavMultipleInputItem|array> $items
      */
-    protected function processItem(mixed $entity, mixed $item, int $itemIndex): array
-    {
-        return $item instanceof EavSingularInputItem
-            ? $this->invertSingularItem($entity, $item, $itemIndex)
-            : $this->invertMultipleItem($entity, $item, $itemIndex);
-    }
+    protected function invertToArray(
+        mixed $entity,
+        array $items,
+        InverterOptionsInterface $options
+    ): InverterOutput {
+        $output = new InverterOutput();
 
-    /**
-     * @return array<EavInterface>
-     */
-    protected function invertSingularItem(mixed $entity, EavSingularInputItem $item, int $itemIndex): array
-    {
-        $options = $this->options;
-        $mapping = $options->getPropertyMapping();
+        foreach ($items as $itemIndex => $item) {
+            if (is_array($item)) {
+                $item = $this->inputItemDenormalizer->denormalize($item, $options);
+            }
 
-        $attribute = $item->attribute;
-        $keyCriteria = [
-            $mapping->getEntity() => $entity,
-            $mapping->getAttribute() => $attribute,
-        ];
+            $duplicatedAttributes = [];
+            $valueData = $options->isMultiple() ? $item->values : $item->value;
+            $violations = $this->inverterValidator->validateItem($entity, $itemIndex, $item->attribute, $valueData,
+                $options, $duplicatedAttributes);
 
-        $data = $this->rowInverter->invert($entity, $attribute, $item->value, $keyCriteria, $itemIndex, null, $options);
-        if ($data instanceof EavInterface) {
-            return [$data];
-        } else if ($data instanceof EavInverterViolation) {
-            $this->violations[] = $data;
-        }
-
-        return [];
-    }
-
-    /**
-     * @param scalar $entity
-     * @return array<EavInterface>
-     */
-    protected function invertMultipleItem(mixed $entity, EavMultipleInputItem $item, int $itemIndex): array
-    {
-        $options = $this->options;
-        $mapping = $options->getPropertyMapping();
-
-        $attribute = $item->attribute;
-        $rows = [];
-
-        foreach ($item->values as $key => $value) {
-            $keyCriteria = [
-                $mapping->getEntity() => $entity,
-                $mapping->getAttribute() => $attribute,
-                $mapping->getValue() => $value,
-            ];
-
-            $data = $this->rowInverter->invert($entity, $attribute, $value, $keyCriteria, $itemIndex, $key, $options);
-            if ($data instanceof EavInterface) {
-                $rows[] = $data;
-            } else if ($data instanceof EavInverterViolation) {
-                $this->violations[] = $data;
+            if (count($violations)) {
+                $output->violations = array_merge($output->violations, $violations);
+            } else {
+                $partialOutput = $this->inverterProcessor->processItem($entity, $item, $itemIndex, $options);
+                $output->eavs = array_merge($output->eavs, $partialOutput->eavs);
+                $output->violations = array_merge($output->violations, $partialOutput->violations);
             }
         }
 
-        return $rows;
-    }
-
-    /**
-     * @param EavSingularInputItem|EavMultipleInputItem $item
-     * @return scalar
-     */
-    protected function getItemAttribute(mixed $item): mixed
-    {
-        return $item->attribute;
-    }
-
-    /**
-     * @param EavSingularInputItem|EavMultipleInputItem $item
-     * @return scalar|array<scalar>
-     */
-    protected function getItemValueData(mixed $item): mixed
-    {
-        return $this->options->isMultiple() ? $item->values : $item->value;
+        return $output;
     }
 }

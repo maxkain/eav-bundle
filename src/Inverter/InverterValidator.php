@@ -3,22 +3,15 @@
 namespace Maxkain\EavBundle\Inverter;
 
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
-use Maxkain\EavBundle\Contracts\Entity\EavInterface;
+use Maxkain\EavBundle\Contracts\Entity\EavEntityInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
 use Maxkain\EavBundle\Inverter\Options\InverterOptionsInterface;
 
 class InverterValidator
 {
-    protected array $duplicatedAttributes;
-
     public function __construct(
         protected InverterViolationFactory $inverterViolationFactory,
     ) {
-    }
-
-    public function reset(): void
-    {
-        $this->duplicatedAttributes = [];
     }
 
     /**
@@ -29,16 +22,18 @@ class InverterValidator
         int $itemIndex,
         mixed $attribute,
         mixed $inputValue,
-        InverterOptionsInterface $options
+        InverterOptionsInterface $options,
+        array &$duplicatedAttributes
     ): array {
         $violations = [];
         $reversMapping = $options->getReversePropertyMapping();
         $attributeProperty = $reversMapping->getAttribute();
 
-        $entityId = $entity instanceof EavInterface ? $entity->getId() : $entity;
-        $attributeId = $entity instanceof EavAttributeInterface ? $attribute->getId() : $attribute;
+        $entityId = $entity instanceof EavEntityInterface ? $entity->getId() : $entity;
+        $attributeId = $attribute instanceof EavAttributeInterface ? $attribute->getId() : $attribute;
 
-        $violations = array_merge($violations, $this->checkAttributeDuplicates($attributeId, $attributeProperty, $itemIndex));
+        $violations = array_merge($violations,
+            $this->checkAttributeDuplicates($attributeId, $attributeProperty, $itemIndex, $duplicatedAttributes));
 
         $attributePath = [$itemIndex, $attributeProperty];
 
@@ -55,12 +50,16 @@ class InverterValidator
         return array_merge($violations, $this->checkValues($itemIndex, $inputValue, $options));
     }
 
-    protected function checkAttributeDuplicates(mixed $attributeId, string $attributeProperty, int $itemIndex): array
-    {
+    protected function checkAttributeDuplicates(
+        mixed $attributeId,
+        string $attributeProperty,
+        int $itemIndex,
+        array &$duplicatedAttributes
+    ): array {
         $violations = [];
-        if (isset($this->duplicatedAttributes[$attributeId])) {
-            if (count($this->duplicatedAttributes[$attributeId]) == 1) {
-                $attributePath = [current($this->duplicatedAttributes[$attributeId]), $attributeProperty];
+        if (isset($duplicatedAttributes[$attributeId])) {
+            if (count($duplicatedAttributes[$attributeId]) == 1) {
+                $attributePath = [current($duplicatedAttributes[$attributeId]), $attributeProperty];
                 $violations[] = $this->createDuplicatedAttributeViolation([], $attributePath);
             }
 
@@ -68,7 +67,7 @@ class InverterValidator
             $violations[] = $this->createDuplicatedAttributeViolation([], $attributePath);
         }
 
-        $this->duplicatedAttributes[$attributeId][] = $itemIndex;
+        $duplicatedAttributes[$attributeId][] = $itemIndex;
 
         return $violations;
     }

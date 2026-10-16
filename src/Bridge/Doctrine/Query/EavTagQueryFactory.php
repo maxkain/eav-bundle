@@ -2,26 +2,26 @@
 
 namespace Maxkain\EavBundle\Bridge\Doctrine\Query;
 
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query\Expr\Func;
+use Doctrine\ORM\Query\Expr\Andx;
 use Doctrine\ORM\Query\Expr\Orx;
 use Doctrine\ORM\QueryBuilder;
+use Doctrine\Persistence\ObjectRepository;
+use Maxkain\EavBundle\Bridge\Doctrine\Provider\DoctrineProvider;
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\Tag\EavAttributeWithTagsInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
-use Maxkain\EavBundle\Options\EavOptionsRegistry;
+use Maxkain\EavBundle\Tag\Options\TagOptionsInterface;
 
 class EavTagQueryFactory
 {
     public function __construct(
-        protected EntityManagerInterface $em,
-        protected EavOptionsRegistry $optionsRegistry,
+        protected DoctrineProvider $doctrineProvider,
         protected AliasGenerator $aliasGenerator
     ) {
     }
 
     /**
-     * @param scalar|EavAttributeInterface $attribute
+     * @param scalar|EavAttributeInterface|QueryFieldPath $attribute
      */
     public function createTagConditions(
         QueryBuilder $qb,
@@ -29,14 +29,14 @@ class EavTagQueryFactory
         mixed $attribute,
         EavOptionsInterface $options,
         string $aliasPrefix = ''
-    ): Orx {
-        $tagConditions = new Orx();
-        $options = $this->optionsRegistry->getByEav($options->getEavFqcn());
-        $i = 0;
+    ): Andx|Orx {
+        $tagConditions = $options->isOrTagLogic() ? new Orx() : new Andx();
 
-        foreach ($options as $option) {
-            $tagCondition = $this->createTagCondition($qb, $entityAlias, $attribute, $option, $i, $aliasPrefix);
-            if ($tagCondition) {
+        $i = 0;
+        foreach ($options->getTagOptions() as $tagOptions) {
+            $tagCondition = $this->createTagCondition($qb, $entityAlias, $attribute, $tagOptions, $options, $i,
+                $aliasPrefix);
+            if ($tagCondition->count()) {
                 $tagConditions->add($tagCondition);
                 $i++;
             }
@@ -46,103 +46,138 @@ class EavTagQueryFactory
     }
 
     /**
-     * @param scalar|EavAttributeInterface $attribute
+     * @param scalar|EavAttributeInterface|QueryFieldPath $attribute
      */
-    public function createTagCondition(
+    protected function createTagCondition(
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
+        TagOptionsInterface $tagOptions,
         EavOptionsInterface $options,
         int $index = 0,
         string $aliasPrefix = ''
-    ): ?Func {
-        $em = $this->em;
-        $mapping = $options->getPropertyMapping();
-        $entityIdPath = $entityAlias . '.' . $mapping->getEntityId();
+    ): Orx {
+        $mapping = $tagOptions->getPropertyMapping();
         $attribute = is_scalar($attribute)
-            ? $em->getRepository($options->getAttributeFqcn())->find($attribute) : $attribute;
+            ? $this->getRepository($options->getAttributeFqcn())->find($attribute) : $attribute;
 
-        $tagCondition = null;
-        if ($attribute instanceof EavAttributeWithTagsInterface
-            && !$attribute->isForAllEavTags($options->getTagKey())
+        if ($attribute === null) {
+            throw new EavQueryException('Attribute is not valid.');
+        }
+
+        $tagCondition = new Orx();
+        if ($attribute instanceof QueryFieldPath ||
+            $attribute instanceof EavAttributeWithTagsInterface
+            && !$attribute->isForAllEavTags($tagOptions->getTagFqcn())
         ) {
-            $attributeTagQb = $this->createAttributeTagQb($attribute, $qb, $options, $index, $aliasPrefix);
+            $attributeTagQb = $this->createAttributeTagQb($qb,$attribute, $tagOptions, $options, $index, $aliasPrefix);
             $expr = $attributeTagQb->expr();
 
-            if ($options->isMultipleTags()) {
-                $innerEntityQb = $this->createInnerEntityQb($entityIdPath, $attribute, $attributeTagQb, $options, $index, $aliasPrefix);
-                $tagCondition = $expr->exists($innerEntityQb->getDQL());
+            if ($attribute instanceof QueryFieldPath) {
+                $forAllQb = $this->createForAllQb($qb, $attribute, $tagOptions, $options, $index, $aliasPrefix);
+                $forAllCondition = $expr->exists($forAllQb);
+                $tagCondition->add($forAllCondition);
+            }
+
+            if ($tagOptions->isMultipleTags()) {
+                $innerEntityQb = $this->createInnerTagQb($entityAlias, $attribute, $attributeTagQb, $tagOptions,
+                    $options, $index, $aliasPrefix);
+                $condition = $expr->exists($innerEntityQb->getDQL());
             } else {
                 $tagPath = $entityAlias . '.' . $mapping->getEntityTag();
-                $tagCondition = $expr->in($tagPath, $attributeTagQb->getDQL());
+                $condition = $expr->in($tagPath, $attributeTagQb->getDQL());
+                $condition = new Andx(["$tagPath IS NOT NULL", $condition]);
             }
+
+            $tagCondition->add($condition);
         }
 
         return $tagCondition;
     }
 
-    /**
-     * @param scalar|EavAttributeInterface $attribute
-     */
-    public function createAttributeTagQb(
-        mixed $attribute,
-        QueryBuilder $mainQb,
+    protected function createForAllQb(
+        QueryBuilder $qb,
+        QueryFieldPath $attributePath,
+        TagOptionsInterface $tagOptions,
         EavOptionsInterface $options,
         int $index = 0,
         string $aliasPrefix = ''
     ): QueryBuilder {
-        $mapping = $options->getPropertyMapping();
-        $attributeTagFqcn = $options->getAttributeTagFqcn();
-        $attributeTagAlias = $this->aliasGenerator->generate($aliasPrefix . 'attributeTag', $options->getIndex(), $attribute, $index);
-        $attributeTagTagPath = $attributeTagAlias . '.' . $mapping->getAttributeTagTag();
-        $attributeTagAttributePath = $attributeTagAlias . '.' . $mapping->getAttributeTagAttribute();
+        $expr = $qb->expr();
+        $attributeName = $aliasPrefix . 'attributeForAllTags';
+        $attributeAlias = $this->aliasGenerator->generate($attributeName, $options->getIndex(), $attributePath, $index);
+        $tagMapping = $tagOptions->getPropertyMapping();
+        $attributeForAllTagsPath = $attributeAlias . '.' . $tagMapping->getAttributeForAllTags();
+        $forAllQb = $this->getRepository($options->getAttributeFqcn())->createQueryBuilder($attributeAlias);
 
-        $attributeTagQb = $this->em->getRepository($attributeTagFqcn)
-            ->createQueryBuilder($attributeTagAlias);
+        return $forAllQb->select('1')
+            ->where($expr->eq($attributeAlias, (string) $attributePath))
+            ->andWhere(
+                $expr->eq($attributeForAllTagsPath, $qb->createNamedParameter(true))
+            );
+    }
 
+    protected function createAttributeTagQb(
+        QueryBuilder $qb,
+        EavAttributeInterface|QueryFieldPath $attribute,
+        TagOptionsInterface $tagOptions,
+        EavOptionsInterface $options,
+        int $index = 0,
+        string $aliasPrefix = ''
+    ): QueryBuilder {
+        $tagMapping = $tagOptions->getPropertyMapping();
+        $attributeTagFqcn = $tagOptions->getAttributeTagFqcn();
+        $attributeTagName = $aliasPrefix . 'attributeTag';
+        $attributeTagAlias = $this->aliasGenerator->generate($attributeTagName, $options->getIndex(), $attribute, $index);
+        $attributeTagTagPath = $attributeTagAlias . '.' . $tagMapping->getAttributeTagTag();
+        $attributeTagAttributePath = $attributeTagAlias . '.' . $tagMapping->getAttributeTagAttribute();
+
+        $attributeTagQb = $this->getRepository($attributeTagFqcn)->createQueryBuilder($attributeTagAlias);
         $expr = $attributeTagQb->expr();
+        $attributeParameter = $attribute instanceof EavAttributeInterface
+                ? $qb->createNamedParameter($attribute)
+                : (string) $attribute;
         $attributeTagQb->select('IDENTITY(' . $attributeTagTagPath . ')')
             ->where(
                 $expr->eq(
-                    $mainQb->createNamedParameter($attribute),
-                    $attributeTagAttributePath
+                    $attributeTagAttributePath,
+                    $attributeParameter
                 )
             );
 
         return $attributeTagQb;
     }
 
-    /**
-     * @param scalar|EavAttributeInterface $attribute
-     */
-    public function createInnerEntityQb(
-        string $entityIdPath,
-        mixed $attribute,
+    protected function createInnerTagQb(
+        string $entityAlias,
+        EavAttributeInterface|QueryFieldPath $attribute,
         QueryBuilder $attributeTagQb,
+        TagOptionsInterface $tagOptions,
         EavOptionsInterface $options,
         int $index = 0,
         string $aliasPrefix = ''
     ): QueryBuilder {
-        $mapping = $options->getPropertyMapping();
-        $innerEntityAlias = $this->aliasGenerator->generate($aliasPrefix . 'innerEntity', $options->getIndex(), $attribute, $index);
-        $innerEntityIdPath = $innerEntityAlias . '.' . $mapping->getEntityId();
-        $innerEntityTagAlias = $this->aliasGenerator->generate($aliasPrefix . 'innerTag', $options->getIndex(), $attribute, $index);
-        $innerEntityTagPath = $innerEntityAlias . '.' . $mapping->getEntityTags();
+        $tagMapping = $tagOptions->getPropertyMapping();
+        $innerTagName = $aliasPrefix . 'innerTag';
+        $innerTagAlias = $this->aliasGenerator->generate($innerTagName, $options->getIndex(), $attribute, $index);
+        $entityTagPath = $entityAlias . '.' . $tagMapping->getEntityTags();
 
-        $innerEntityQb = $this->em->getRepository($options->getEntityFqcn())
-            ->createQueryBuilder($innerEntityAlias);
-
-        $expr = $innerEntityQb->expr();
-        $innerEntityQb->select('1')
-            ->join($innerEntityTagPath, $innerEntityTagAlias)
+        $innerTagQb = $this->getRepository($tagOptions->getTagFqcn())->createQueryBuilder($innerTagAlias);
+        $expr = $innerTagQb->expr();
+        $innerTagQb->select('1')
             ->where(
-                $expr->eq($entityIdPath, $innerEntityIdPath)
+                "$innerTagAlias MEMBER OF $entityTagPath",
             )
             ->andWhere(
-                $expr->in($innerEntityTagAlias, $attributeTagQb->getDQL())
+                $expr->in($innerTagAlias, $attributeTagQb->getDQL())
             )
         ;
 
-        return $innerEntityQb;
+        return $innerTagQb;
+    }
+
+    protected function getRepository(string $fqcn): ObjectRepository
+    {
+        return $this->doctrineProvider->getRepository($fqcn);
     }
 }

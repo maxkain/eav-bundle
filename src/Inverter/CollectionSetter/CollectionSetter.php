@@ -1,15 +1,15 @@
 <?php
 
-namespace Maxkain\EavBundle\Utils\CollectionSetter;
+namespace Maxkain\EavBundle\Inverter\CollectionSetter;
 
 class CollectionSetter
 {
     /**
-     * @param array<CollectionItemIdentityInterface> $from
+     * @param iterable<CollectionItemIdentityInterface> $from
      * @param iterable<CollectionItemIdentityInterface> $to
      * @return iterable<CollectionItemIdentityInterface>
      */
-    public function add(array $from, iterable $to): iterable
+    public function add(iterable $from, iterable $to, ?callable $orphanedChecker = null): iterable
     {
         $items = [];
         $fromIdMap = [];
@@ -19,8 +19,18 @@ class CollectionSetter
         }
 
         foreach ($to as $item) {
-            $items[] = $fromIdMap[$item->getId()] ?? $item;
-            unset($fromIdMap[$item->getId()]);
+            if ($fromIdMap[$item->getId()]) {
+                $items[] = $fromIdMap[$item->getId()];
+                unset($fromIdMap[$item->getId()]);
+            } else {
+                if ($orphanedChecker) {
+                    if ($orphanedChecker($item)) {
+                        $items[] = $item;
+                    }
+                } else {
+                    $items[] = $item;
+                }
+            }
         }
 
         foreach ($fromIdMap as $item) {
@@ -33,11 +43,11 @@ class CollectionSetter
     }
 
     /**
-     * @param array<CollectionItemIdentityInterface> $from
+     * @param iterable<CollectionItemIdentityInterface> $from
      * @param iterable<CollectionItemIdentityInterface> $to
      * @return iterable<CollectionItemIdentityInterface>
      */
-    public function set(array $from, iterable $to): iterable
+    public function set(iterable $from, iterable $to): iterable
     {
         foreach ($to as $key => $value) {
             unset($to[$key]);

@@ -16,6 +16,7 @@
 - [EAV Tag](#eav-tag)
 - [Query factory](#query-factory)
 - [Usage with EasyAdmin and Forms](#usage-with-easyadmin-and-forms)
+- [Testing and developing](#testing-and-developing)
 - [Demo application](https://github.com/maxkain/eav-demo)
 
 ## Description
@@ -260,9 +261,9 @@ class MyService
     
         //	and call the inverter:
         $eavInverter = $this->eavInverter;
-        $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
-        if (!$eavInverter->isValid()) {
-            $violations = $eavInverter->getViolations();
+        $result = $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
+        if (!$result->isValid()) {
+            $violations = $result->violations;
     
             // ...set the response with violations
             return $response;
@@ -278,15 +279,15 @@ class MyService
 
 If you use Forms, the violations will be automatically mapped to form fields. And if you have Translator installed, the messages will be translated.
 
-If you need to add only values, without removal exiting, pass `withAddOnly` parameter to the `invert` function.
+If you need to add only values, without removal exiting, pass `addOnly` parameter to the `invert` function.
 
 If you pass items as arrays, field names can be configured with `reversePropertyMapping` option:
 
 ```php
 new EavOptions(
     reversePropertyMapping: new ReversePropertyMapping(
-        attribute: 'any_attribute_name',
-        values: 'any_values_name'
+        attribute: 'anyAttributeName',
+        values: 'anyValuesName'
     )
 );
 ```
@@ -305,7 +306,7 @@ new EavOptions(
 
 This mapping is needed for database queries. It would be nice to read options from PHP attributes and reflection at container compile time, but there is no such functionality for now. Although, you will rarely need to change it.
 
-To get the list of allowed attributes for entity, to show it to the user, use `findAllowedAttributes` method of `EavInverter`.
+To get the list of allowed attributes for entity, to show it to the user, use `findAllowed` method of `AttributeFinder`.
 
 ## Validation
 
@@ -368,7 +369,7 @@ public function __construct(
     $options = $optionsRegistry->get(MyEav::class);
     
     // or pass the string as option parameter to inverter or converter
-    $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), MyEav::class);
+    $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
 }
 ```
 
@@ -428,25 +429,13 @@ private bool $forAllTags = false;
 Your `Categoty` should  implement `EavTagInterface`, your `Product` should implement `EavEntityWithTagsInterface` and your attribute should implement `EavAttributeWithTagsInterface`. The method `getEavTags` of your `Product` and `MyAttribute` should look, like this:
 
 ```php
-public function getEavTags(string $tagKey): iterable
-{
-    return match ($tagKey) {
-        Category::class => isset($this->category) ? [$this->category] : [],
-        default => []
-    };
-}
-```
-
-If you have `ManyToMany` Categories, then, like this:
-
-```php
-public function getEavTags(string $tagKey): iterable
-{
-    return match ($tagKey) {
-        Category::class => $this->categories,
-        default => []
-    };
-}
+    public function getEavTags(string $tagFqcn): EavTagInterface|iterable|null
+    {
+        return match ($tagFqcn) {
+            Category::class => $this->category ?? null,
+            Tag::class => $this->tags
+        };
+    }
 ```
 
 `isForAllEavTags` method of attribute looks similar.
@@ -466,13 +455,15 @@ new EavOptions(
 ),
 ```
 
-If you have different properties and different options in your entity with the same category entity, you might set `tagKey` option and pass it value as key of the array, returned by `getEavTags`.
-
 That's all, the `Category` is bound.
 
 If you want to include parent's categories attributes, simply, store them all in a dedicated ManyToMany field of your entity and fill the field by the setter of the main category property or by your service, controller, or by doctrine event listener. And don't forget to set EAV property mapping.
 
 The `OrphanedEavsListener` is enabled by default. It works fast, but you can disable it by `enable_orphaned_eavs_listener` config of the bundle or by `setEnabled` method of the listener.
+
+> If you wrap your `flush()` method in transaction and `OrphanedListener` is enabled,
+> then the `postFlush` event handler will be called in the same transaction,
+> so, you may disable `tagCondition` of `EavQueryFactory`, because it doesn't make sense in this case.
 
 ## Query factory
 
@@ -483,6 +474,7 @@ You may use `EavQueryFactory`, like this:
 ```php
 use Doctrine\ORM\EntityManagerInterface;
 use Maxkain\EavBundle\Bridge\Doctrine\Query\EavQueryFactory;
+use Maxkain\EavBundle\Options\EavOptionsResolverInterface;
 use Maxkain\EavBundle\Query\EavExpression;
 use Maxkain\EavBundle\Query\EavComparison;
 
@@ -490,22 +482,24 @@ class MyService
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private EavQueryFactory $eavQueryFactory
+        private EavQueryFactory $eavQueryFactory,
+        private EavOptionsResolverInterface $eavOptionsResolver
     ) {
     }
 	
     public function myMethod(): array
     {
     	$qb = $this->em->getRepository(Product::class)->createQueryBuilder('e')->select();
-
+        $myEavOptions = $this->eavOptionsResolver->resolve(MyEav::class);
         // attribute id => values (or value ids for enum EAV)
-        $this->eavQueryFactory->addEavFilters($qb, 'e', MyEav::class, [
+        $this->eavQueryFactory->addEavFilters($qb, 'e', $myEavOptions, [
             777 => [111, 222],
             888 => [333, new EavComparison('>', 10)]
             // ...
         ]);
         
-        $this->eavQueryFactory->addEavFilters($qb, 'e', MyAnotherEav::class, [
+        $myAnotherEavOptions = $this->eavOptionsResolver->resolve(MyAnotherEav::class);
+        $this->eavQueryFactory->addEavFilters($qb, 'e', $myAnotherEavOptions, [
             999 => 'myValue1',
             555 => 'myValue2'
             111 => new EavComparison('>', 10),
@@ -527,11 +521,15 @@ class MyService
 
 Here you pass attributes with values.
 If you use `EavExpression`, ':field' placeholder will be replaced to the value field path.
-Don't forget to escape user's input by Doctine's `createNamedParameter` function.
+With `EavExpression` you may define any DQL condition.
+Don't forget to escape user's input by Doctrine's `createNamedParameter` function.
 If you use `EavComparison`, `value` argument will be escaped automatically.
-By default, all conditions use `AND` logic, but with `EavExpression` you may define any DQL condition.
-You may customize `OR` logic by setting to `true` flags `orValueLogic`, `orAttributeLogic` and `orEavLogic`.
-Also, you may use `createEavCondition` method for more complex logic.
+
+You may customize `OR`-`AND` logic by setting flags.
+By default, `orValueLogic=true`, `orAttributeLogic=false`.
+The `orValueLogic=false` makes no sense, if attribute is singular. 
+The result will be empty, because singular attribute can not have more, than one value.
+Also, you may use `EavExpression` or `createEavCondition` method for more complex logic.
 
 If value is enum, an additional join is applied with `EavValue` entity and the `:field` placeholder equals to value id. Use a `:fieldTitle` placeholder for the real value. 
 If you don't use `EavExpression` and comparison is not '=', then the `:fieldTitle` placeholder is applied automatically.
@@ -546,12 +544,12 @@ $myEavFilter = [
 
 // selects the value or value title (if enum) of attribute 22
 // if there are multiple values, then MIN(:value) is selected by default
-$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class);
+$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions);
 
 // you may customize `select` and `as` expressions
 // `as` expression by default has doctrine's option `HIDDEN`, so, the value is selected, but not hydrated
 // 'attributeName' placeholder generates automatically, but you can change it  
-$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class,
+$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
     // default values:
     select: 'MIN(:value)',
     as: 'HIDDEN :attributeName'
@@ -561,20 +559,20 @@ $eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class,
 
 // get the generated attribute name,
 // it looks like 'attribute_0_22', where 0 is eav options index
-$attribute22Name = $eavQueryFactory->getAttributeName(MyEav::class, 22);
+$attribute22Name = $eavQueryFactory->getAttributeName($myEavOptions, 22);
 
 // add order by it as by regular column
 $qb->addOrderBy($attribute22Name, 'ASC');
 
 //or simply use any other attribute name
-$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class,
+$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
     select: 'MAX(:value)',
     as: 'HIDDEN myColumn'
 );
 $qb->addOrderBy('myColumn', 'DESC');
 
 // restricts selected values to values from the list $myEavFilter[22]
-$eavQueryFactory->addValueSelect($qb, 'e', 22, MyEav::class, $myEavFilter[22]);
+$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions, $myEavFilter[22]);
 ```
 
 ## Usage with EasyAdmin and Forms
@@ -648,3 +646,34 @@ So, if you need, you should create your own validator's constraint, which can pr
 And there are other options, you can pass, see the factory's code.
 
 If you use EAV tag, the tag field should be earlier, then EAV properties, in the fields order. This is necessary for tags checker could read this field.
+
+## Testing and developing
+
+If you want to send pull requests, you need fork [Demo application](https://github.com/maxkain/eav-demo) and this repository. Then:
+
+- Clone your fork of demo repository, then clone your fork of this repository in `eav-bundle` directory of demo.
+Also, you may just create projects from these repositories if you want to run it only.
+- Set up database config in `.env.local` file. You need a database and PHP installed.
+- Run `composer install`.
+- Run `bin/console --env=test doctrine:database:create`.
+- Run `bin/console --env=test doctrine:schema:update --force`.
+- Run `bin/console --env=test app:test:load-fixtures`.
+
+You may run it for `dev` env too. See 'http://localhost/admin' then.
+The fixtures are loaded once. Tests run inside transactions, then they roll back.
+When you loading fixtures, the schema is reset automatically.
+
+Other:
+- Run tests: `bin/phpunit`.
+- Reset schema: `bin/console app:test:schema-reset`.
+- See `TestCommand` and `TestConroller` for something else.
+
+### Directory structure
+This bundle has a regular Symfony project structure, except for a few points.
+All the code with dependency on external packages is located in `Bridge` directory.
+External dependency - is that breaks the library if removed in such way, that the library can not be fixed without changing its code.
+`Contracts` contains interfaces, which: 
+ - Should be implemented in application.
+ - Or already implemented in `Bridge`.
+   
+The rest of the structure is arbitrary.

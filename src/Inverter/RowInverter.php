@@ -2,13 +2,16 @@
 
 namespace Maxkain\EavBundle\Inverter;
 
-use Maxkain\EavBundle\Attribute\AttributeChecker;
+use Maxkain\EavBundle\AttributeChecker\AttributeChecker;
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavEntityInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavEnumAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
+use Maxkain\EavBundle\Contracts\Repository\AttributeRepositoryInterface;
+use Maxkain\EavBundle\Contracts\Repository\EntityRepositoryInterface;
 use Maxkain\EavBundle\Contracts\Repository\EavRepositoryInterface;
+use Maxkain\EavBundle\Contracts\Repository\ValueRepositoryInterface;
 use Maxkain\EavBundle\Inverter\Options\InverterOptionsInterface;
 
 class RowInverter
@@ -16,9 +19,12 @@ class RowInverter
     protected InverterOptionsInterface $options;
 
     public function __construct(
-        protected EavRepositoryInterface $repository,
         protected InverterViolationFactory $inverterViolationFactory,
-        protected AttributeChecker $attributeChecker
+        protected AttributeChecker $attributeChecker,
+        protected EavRepositoryInterface $eavRepository,
+        protected EntityRepositoryInterface $entityRepository,
+        protected AttributeRepositoryInterface $attributeRepository,
+        protected ValueRepositoryInterface $valueRepository
     ) {
     }
 
@@ -32,7 +38,7 @@ class RowInverter
         array $keyCriteria,
         int $itemIndex,
         ?int $valueIndex,
-        InverterOptionsInterface $options
+        InverterOptionsInterface $options,
     ): EavInterface|EavInverterViolation|null {
         if ($options->isIgnoreInputEmptyValue() && empty($value)) {
             return null;
@@ -49,25 +55,25 @@ class RowInverter
             $valuePath[] = $valueIndex;
         }
 
-        $eav = $this->findOneBy($options->getEavFqcn(), $keyCriteria) ?? $this->createEav();
+        $eav = $this->eavRepository->findOneBy($options->getEavFqcn(), $keyCriteria) ?? $this->createEav();
 
         $resultEntity = is_object($entity) ? $entity
-            : $this->findOneBy($options->getEntityFqcn(), [$mapping->getEntityId() => $entity]);
+            : $this->entityRepository->findOneBy($options->getEntityFqcn(), [$mapping->getEntityId() => $entity]);
 
         if (!$resultEntity) {
             return $this->createViolation('Entity not found', [], []);
         }
 
         $resultAttribute = is_object($attribute) ? $attribute
-            : $this->findOneBy($options->getAttributeFqcn(), [$mapping->getAttributeId() => $attribute]);
-        if (!$resultAttribute || !$this->checkAttribute($resultEntity, $resultAttribute)) {
+            : $this->attributeRepository->findOneBy($options->getAttributeFqcn(), [$mapping->getAttributeId() => $attribute]);
+        if (!$resultAttribute || !$this->checkAttribute($resultEntity, $resultAttribute, $options)) {
             return $this->createViolation('Attribute not found', [], $attributePath);
         }
 
         $resultValue = $value;
         if ($options->getValueFqcn()) {
             $resultValue = is_object($value) ? $value
-                : $this->findOneBy($options->getValueFqcn(), [$mapping->getValueId() => $value]);
+                : $this->valueRepository->findOneBy($options->getValueFqcn(), [$mapping->getValueId() => $value]);
             if (!$resultValue || !$this->checkAttributeValue($resultAttribute, $resultValue)) {
                 return $this->createViolation('Value not found', [], $valuePath);
             }
@@ -85,9 +91,9 @@ class RowInverter
         return $this->inverterViolationFactory->create($message, $parameters, $path);
     }
 
-    protected function checkAttribute(EavEntityInterface $entity, EavAttributeInterface $attribute): bool
+    protected function checkAttribute(EavEntityInterface $entity, EavAttributeInterface $attribute, object $options): bool
     {
-        return $this->attributeChecker->check($entity, $attribute);
+        return $this->attributeChecker->check($entity, $attribute, $options);
     }
 
     protected function checkAttributeValue(EavEnumAttributeInterface $attribute, EavValueInterface $value): bool
@@ -104,10 +110,5 @@ class RowInverter
     protected function createEav(): EavInterface
     {
         return new ($this->options->getEavFqcn());
-    }
-
-    protected function findOneBy(string $fqcn, array $criteria): ?object
-    {
-        return $this->repository->findOneBy($fqcn, $criteria);
     }
 }

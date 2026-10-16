@@ -1,13 +1,16 @@
 <?php
 
-namespace Maxkain\EavBundle\Bridge\Form;
+namespace Maxkain\EavBundle\Bridge\Symfony\Form;
 
+use Maxkain\EavBundle\AttributeFinder\EavAttributeFinder;
 use Maxkain\EavBundle\Contracts\Entity\Tag\EavTagInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavEntityInterface;
 use Maxkain\EavBundle\Converter\EavConverterInterface;
 use Maxkain\EavBundle\Inverter\EavInverterInterface;
+use Maxkain\EavBundle\Inverter\InverterOutput;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
+use Maxkain\EavBundle\Options\EavOptionsResolverInterface;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Event\PostSetDataEvent;
@@ -34,7 +37,9 @@ class EavCollectionType extends AbstractType
     public function __construct(
         protected EavConverterInterface $eavConverter,
         protected EavInverterInterface $eavInverter,
-        protected PropertyAccessorInterface $propertyAccessor,
+        protected EavOptionsResolverInterface $eavOptionsResolver,
+        protected EavAttributeFinder $eavAttributeFinder,
+        protected PropertyAccessorInterface $propertyAccessor
     ) {
     }
 
@@ -51,7 +56,8 @@ class EavCollectionType extends AbstractType
 
     protected function getEavOptions(): EavOptionsInterface
     {
-        return $this->options['entry_options'][EavType::EAV_OPTIONS];
+        $options = $this->options['entry_options'][EavType::EAV_OPTIONS];
+        return $this->eavOptionsResolver->resolve($options);
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
@@ -75,8 +81,8 @@ class EavCollectionType extends AbstractType
         /** @var EavEntityInterface $entity */
         $entity = $this->form->getParent()->getData();
         $this->updateTag();
-        $this->eavInverter->invert($entity, $items, $this->data, $this->getEavOptions());
-        $this->addInverseErrors();
+        $output = $this->eavInverter->invert($entity, $items, $this->data, $this->getEavOptions());
+        $this->addInverseErrors($output);
 
         return $this->data;
     }
@@ -111,13 +117,12 @@ class EavCollectionType extends AbstractType
         return false;
     }
 
-    protected function addInverseErrors(): void
+    protected function addInverseErrors(InverterOutput $inverterOutput): void
     {
         $options = $this->getEavOptions();
         $reverseMapping = $options->getReversePropertyMapping();
-        $violations = $this->eavInverter->getViolations();
 
-        foreach ($violations as $violation) {
+        foreach ($inverterOutput->violations as $violation) {
             $form = $this->form;
             $path = null;
             foreach ($violation->getPath() as $path) {
@@ -180,7 +185,7 @@ class EavCollectionType extends AbstractType
         }
 
         $allowedAttributesKeys = [];
-        $attributes = $this->eavInverter->findAllowedAttributes($entity, $this->getEavOptions());
+        $attributes = $this->eavAttributeFinder->findAllowed($entity, $this->getEavOptions());
         foreach ($attributes as $attribute) {
             $attributeId = $attribute->getId();
             $allowedAttributesKeys[$attributeId] = null;

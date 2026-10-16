@@ -8,12 +8,12 @@ use Maxkain\EavBundle\Contracts\Entity\Tag\EavEntityWithTagsInterface;
 class AffectedData
 {
     /**
-     * @var array<EavAttributeWithTagsInterface>
+     * @var array<EavAttributeWithTagsInterface|scalar>
      */
     public array $attributes = [];
 
     /**
-     * @var array<EavEntityWithTagsInterface>
+     * @var array<EavEntityWithTagsInterface|scalar>
      */
     public array $entities = [];
 }

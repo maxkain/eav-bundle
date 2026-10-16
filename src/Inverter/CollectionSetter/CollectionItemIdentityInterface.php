@@ -1,6 +1,6 @@
 <?php
 
-namespace Maxkain\EavBundle\Utils\CollectionSetter;
+namespace Maxkain\EavBundle\Inverter\CollectionSetter;
 
 interface CollectionItemIdentityInterface
 {

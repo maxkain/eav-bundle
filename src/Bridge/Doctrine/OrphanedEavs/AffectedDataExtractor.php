@@ -4,6 +4,7 @@ namespace Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs;
 
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\UnitOfWork;
+use Doctrine\Persistence\ObjectManager;
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavEntityInterface;
 use Maxkain\EavBundle\Contracts\Entity\Tag\EavAttributeTagInterface;
@@ -15,19 +16,21 @@ use Maxkain\EavBundle\Options\EavOptionsRegistry;
 class AffectedDataExtractor
 {
     public function __construct(
-        protected EavOptionsRegistry $optionsRegistry
+        protected EavOptionsRegistry $optionsRegistry,
     ) {
     }
 
     /**
      * @return array<string, AffectedData>
      */
-    public function extract(UnitOfWork $uow): array
+    public function extract(ObjectManager $em): array
     {
         $data = [];
+        $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
             $this->extractAttributes($data, $entity);
+            $this->extractEntitiesByTags($data, $entity, $em);
         }
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
@@ -58,8 +61,40 @@ class AffectedDataExtractor
 
         if ($attribute instanceof EavAttributeWithTagsInterface) {
             foreach ($this->getEavFqcnsByAttribute($attribute) as $eavFqcn) {
-                $data[$eavFqcn] = $data[$eavFqcn] ?? new AffectedData();
+                $data[$eavFqcn] ??= new AffectedData();
                 $data[$eavFqcn]->attributes[$attribute->getId()] = $attribute;
+            }
+        }
+    }
+
+    protected function extractEntitiesByTags(array &$data, object $entity, ObjectManager $em): void
+    {
+        if ($entity instanceof EavTagInterface) {
+            $tag = $entity;
+            $optionsList = $this->optionsRegistry->getByTag(get_class($tag));
+            foreach ($optionsList as $options) {
+                $eavFqcn = $options->getEavFqcn();
+                $mapping = $options->getPropertyMapping();
+                $entityAlias = 'e';
+                $tagAlias = 't';
+                $entityIdPath = $entityAlias . '.' . $mapping->getEntityId();
+                foreach ($options->getTagOptions() as $tagOptions) {
+                    $tagMapping = $tagOptions->getPropertyMapping();
+                    $tagProp = $tagOptions->isMultipleTags() ? $tagMapping->getEntityTags() : $tagMapping->getEntityTag();
+                    $tagPath = $entityAlias .'.' . $tagProp;
+
+                    $entityIds = $em->getRepository($options->getEntityFqcn())
+                        ->createQueryBuilder($entityAlias)
+                        ->select($entityIdPath)
+                        ->innerJoin($tagPath, $tagAlias)
+                        ->andWhere("$tagAlias = :tag")->setParameter('tag', $tag)
+                        ->getQuery()->getSingleColumnResult();
+
+                    foreach ($entityIds as $entityId) {
+                        $data[$eavFqcn] ??= new AffectedData();
+                        $data[$eavFqcn]->entities[$entityId] = $entityId;
+                    }
+                }
             }
         }
     }
@@ -71,7 +106,7 @@ class AffectedDataExtractor
             foreach ($changeset as $changesetData) {
                 if ($changesetData[0] instanceof EavTagInterface) {
                     foreach ($this->getEavFqcnsByEntity($entity) as $eavFqcn) {
-                        $data[$eavFqcn] = $data[$eavFqcn] ?? new AffectedData();
+                        $data[$eavFqcn] ??= new AffectedData();
                         $data[$eavFqcn]->entities[$entity->getId()] = $entity;
                     }
                 }
@@ -83,13 +118,9 @@ class AffectedDataExtractor
     {
         $entity = $collection->getOwner();
         if ($entity instanceof EavEntityWithTagsInterface) {
-            foreach ($collection->getDeleteDiff() as $tag) {
-                if ($tag instanceof EavTagInterface) {
-                    foreach($this->getEavFqcnsByEntity($entity) as $eavFqcn) {
-                        $data[$eavFqcn] = $data[$eavFqcn] ?? new AffectedData();
-                        $data[$eavFqcn]->entities[$entity->getId()] = $entity;
-                    }
-                }
+            foreach($this->getEavFqcnsByEntity($entity) as $eavFqcn) {
+                $data[$eavFqcn] ??= new AffectedData();
+                $data[$eavFqcn]->entities[$entity->getId()] = $entity;
             }
         }
     }

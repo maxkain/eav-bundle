@@ -2,10 +2,8 @@
 
 namespace Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs;
 
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ObjectManager;
-use Maxkain\EavBundle\Options\EavOptionsInterface;
 
 class AffectedDataQueryFactory
 {
@@ -15,18 +13,26 @@ class AffectedDataQueryFactory
         string $eavAlias,
         string $eavAttributePath,
         string $eavEntityPath,
-        AffectedData $affectedData
+        ?AffectedData $affectedData
     ): QueryBuilder {
         $qb = $em->getRepository($eavFqcn)->createQueryBuilder($eavAlias);
+
         $expr = $qb->expr();
 
-        return $qb->andWhere(
-            $expr->orX(
-                $expr->in($eavAttributePath, ':attributes'),
-                $expr->in($eavEntityPath, ':entities'),
-            )
-        )
-        ->setParameter('attributes', $affectedData->attributes)
-        ->setParameter('entities', $affectedData->entities);
+        $orX = $expr->orX();
+        if ($affectedData?->attributes) {
+            $orX->add($expr->in($eavAttributePath, ':attributes'));
+            $qb->setParameter('attributes', $affectedData->attributes);
+        }
+        if ($affectedData?->entities) {
+            $orX->add($expr->in($eavEntityPath, ':entities'));
+            $qb->setParameter('entities', $affectedData->entities);
+        }
+
+        if ($orX->count()) {
+            $qb->andWhere($orX);
+        }
+
+        return $qb;
     }
 }

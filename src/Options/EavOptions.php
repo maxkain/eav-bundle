@@ -2,6 +2,8 @@
 
 namespace Maxkain\EavBundle\Options;
 
+use Maxkain\EavBundle\Tag\Options\TagOptionsInterface;
+
 class EavOptions implements EavOptionsInterface, SetIndexInterface
 {
     private int $index = 0;
@@ -10,6 +12,7 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
      * @param ?string $entityInputType One of gettype() values or null for any type.
      * @param ?string $attributeInputType One of gettype() values or null for any type.
      * @param ?string $valueInputType One of gettype() values or null for any type.
+     * @param array<TagOptionsInterface> $tagOptions
      */
     public function __construct(
         private string $eavFqcn,
@@ -17,15 +20,13 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
         private string $attributeFqcn,
         private ?string $valueFqcn = null,
         private bool $multiple = false,
-        private ?string $tagFqcn = null,
-        private ?string $tagKey = null,
-        private ?string $attributeTagFqcn = null,
-        private bool $multipleTags = false,
         private ?string $entityInputType = null,
         private ?string $attributeInputType = null,
         private ?string $valueInputType = null,
         private bool $convertItemsToArrays = false,
         private bool $ignoreInputEmptyValue = true,
+        private array $tagOptions = [],
+        private bool $orTagLogic = true,
         private PropertyMapping $propertyMapping = new PropertyMapping(),
         private ReversePropertyMapping $reversePropertyMapping = new ReversePropertyMapping()
     ) {
@@ -103,50 +104,6 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
         return $this;
     }
 
-    public function getTagFqcn(): ?string
-    {
-        return $this->tagFqcn;
-    }
-
-    public function setTagFqcn(?string $tagFqcn): static
-    {
-        $this->tagFqcn = $tagFqcn;
-        return $this;
-    }
-
-    public function getTagKey(): ?string
-    {
-        return $this->tagKey ?? $this->tagFqcn;
-    }
-
-    public function setTagKey(?string $tagKey): static
-    {
-        $this->tagKey = $tagKey;
-        return $this;
-    }
-
-    public function getAttributeTagFqcn(): ?string
-    {
-        return $this->attributeTagFqcn;
-    }
-
-    public function setAttributeTagFqcn(?string $attributeTagFqcn): static
-    {
-        $this->attributeTagFqcn = $attributeTagFqcn;
-        return $this;
-    }
-
-    public function isMultipleTags(): bool
-    {
-        return $this->multipleTags;
-    }
-
-    public function setMultipleTags(bool $multipleTags): static
-    {
-        $this->multipleTags = $multipleTags;
-        return $this;
-    }
-
     public function getEntityInputType(): ?string
     {
         return $this->entityInputType;
@@ -199,6 +156,34 @@ class EavOptions implements EavOptionsInterface, SetIndexInterface
     public function setIgnoreInputEmptyValue(bool $ignoreInputEmptyValue): static
     {
         $this->ignoreInputEmptyValue = $ignoreInputEmptyValue;
+        return $this;
+    }
+
+    /**
+     * @return array<TagOptionsInterface>
+     */
+    public function getTagOptions(): array
+    {
+        return $this->tagOptions;
+    }
+
+    /**
+     * @param array<TagOptionsInterface> $tagOptions
+     */
+    public function setTagOptions(array $tagOptions): static
+    {
+        $this->tagOptions = $tagOptions;
+        return $this;
+    }
+
+    public function isOrTagLogic(): bool
+    {
+        return $this->orTagLogic;
+    }
+
+    public function setOrTagLogic(bool $orTagLogic): static
+    {
+        $this->orTagLogic = $orTagLogic;
         return $this;
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Maxkain\EavBundle\Bridge\Translator;
+namespace Maxkain\EavBundle\Bridge\Symfony\Translator;
 
 use Maxkain\EavBundle\Contracts\Translator\EavTranslatorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;

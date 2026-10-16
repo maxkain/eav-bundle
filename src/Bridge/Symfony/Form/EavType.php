@@ -1,10 +1,10 @@
 <?php
 
-namespace Maxkain\EavBundle\Bridge\Form;
+namespace Maxkain\EavBundle\Bridge\Symfony\Form;
 
 use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldDto;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
-use Maxkain\EavBundle\Contracts\Repository\EavRepositoryInterface;
+use Maxkain\EavBundle\Contracts\Repository\ValueRepositoryInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Event\PostSubmitEvent;
@@ -34,7 +34,7 @@ class EavType extends AbstractType
     protected mixed $data;
 
     public function __construct(
-        protected EavRepositoryInterface $repository,
+        protected ValueRepositoryInterface $valueRepository,
     ) {
     }
 
@@ -198,7 +198,7 @@ class EavType extends AbstractType
         $mapping = $this->getEavOptions()->getPropertyMapping();
         $valueFqcn = $this->getEavOptions()->getValueFqcn();
 
-        return $this->repository->findBy($valueFqcn, [$mapping->getValueAttribute() => $attributeId]);
+        return $this->valueRepository->findBy($valueFqcn, [$mapping->getValueAttribute() => $attributeId]);
     }
 
     protected function extractEa(FormInterface $form): void

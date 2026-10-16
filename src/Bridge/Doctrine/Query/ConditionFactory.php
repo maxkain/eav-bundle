@@ -8,7 +8,6 @@ use Doctrine\ORM\QueryBuilder;
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
-use Maxkain\EavBundle\Options\EavOptionsRegistry;
 use Maxkain\EavBundle\Query\EavComparison;
 use Maxkain\EavBundle\Query\EavExpression;
 
@@ -17,8 +16,7 @@ class ConditionFactory
     public function __construct(
         protected SubqueryContextFactory $subqueryContextFactory,
         protected ExpressionResolver $expressionResolver,
-        protected EavTagQueryFactory $tagQueryFactory,
-        protected EavOptionsRegistry $optionsRegistry
+        protected EavTagQueryFactory $tagQueryFactory
     ) {
     }
 
@@ -30,12 +28,11 @@ class ConditionFactory
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value,
         bool $tagConditionEnabled = true,
-        bool $orValueLogic = false
+        bool $orValueLogic = true
     ): Andx {
-        $options = $this->optionsRegistry->resolve($options);
         $expr = $qb->expr();
 
         $mainCondition = $expr->andX();

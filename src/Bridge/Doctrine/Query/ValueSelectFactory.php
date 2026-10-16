@@ -8,7 +8,6 @@ use Doctrine\ORM\QueryBuilder;
 use Maxkain\EavBundle\Contracts\Entity\EavAttributeInterface;
 use Maxkain\EavBundle\Contracts\Entity\EavValueInterface;
 use Maxkain\EavBundle\Options\EavOptionsInterface;
-use Maxkain\EavBundle\Options\EavOptionsRegistry;
 use Maxkain\EavBundle\Query\EavComparison;
 use Maxkain\EavBundle\Query\EavExpression;
 
@@ -18,9 +17,8 @@ class ValueSelectFactory
         protected SubqueryContextFactory $subqueryContextFactory,
         protected ExpressionResolver $expressionResolver,
         protected EavTagQueryFactory $tagQueryFactory,
-        protected EavOptionsRegistry $optionsRegistry,
         protected AliasGenerator $aliasGenerator,
-        protected PlaceholderReplacer $placeholderReplacer
+        protected PlaceholderReplacer $placeholderReplacer,
     ) {
     }
 
@@ -32,15 +30,13 @@ class ValueSelectFactory
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value = null,
         bool $tagConditionEnabled = true,
         string $select = 'MIN(:value)',
         string $as = 'HIDDEN :attributeName'
     ): QueryBuilder {
-        $options = $this->optionsRegistry->resolve($options);
-
-        $selectQb = $this->create($qb, $entityAlias, $attribute, $options, $value, $tagConditionEnabled, $select);
+        $selectQb = $this->createQb($qb, $entityAlias, $attribute, $options, $value, $tagConditionEnabled, $select);
         $attributeName = $this->getAttributeName($options, $attribute);
         $as = $this->replacePlaceholder('attributeName', $attributeName, $as);
         $qb->addSelect('(' . $selectQb->getDQL() . ') AS ' . $as);
@@ -52,18 +48,17 @@ class ValueSelectFactory
      * @param scalar|EavAttributeInterface $attribute
      * @param array|scalar|EavValueInterface|EavExpression|EavComparison|null $value
      */
-    public function create(
+    public function createQb(
         QueryBuilder $qb,
         string $entityAlias,
         mixed $attribute,
-        EavOptionsInterface|string $options,
+        EavOptionsInterface $options,
         mixed $value = null,
         bool $tagConditionEnabled = true,
-        string $select = 'MIN(:value)'
+        string $select = 'MIN(:value)',
     ): QueryBuilder {
         $aliasPrefix = 'select_';
         $data = $this->subqueryContextFactory->create($entityAlias, $attribute, $options, $value, $aliasPrefix);
-        $options = $data->options;
 
         $mainCondition = $this->createMainCondition($qb, $attribute, $data);
         $innerCondition = $this->createInnerCondition($qb, $value, $data);
@@ -108,9 +103,8 @@ class ValueSelectFactory
     /**
      * @param scalar|EavAttributeInterface $attribute
      */
-    public function getAttributeName(EavOptionsInterface|string $options, mixed $attribute): string
+    public function getAttributeName(EavOptionsInterface $options, mixed $attribute): string
     {
-        $options = $this->optionsRegistry->resolve($options);
         return $this->aliasGenerator->generate('attribute', $options->getIndex(), $attribute);
     }
 

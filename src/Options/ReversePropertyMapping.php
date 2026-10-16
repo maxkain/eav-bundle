@@ -6,11 +6,11 @@ class ReversePropertyMapping implements ReversePropertyMappingInterface
 {
     public function __construct(
         private string $attribute = 'attribute',
-        private string $attributeName = 'attribute_name',
+        private string $attributeName = 'attributeName',
         private string $values = 'values',
         private string $value = 'value',
-        private string $valueTitles = 'value_titles',
-        private string $valueTitle = 'value_title',
+        private string $valueTitles = 'valueTitles',
+        private string $valueTitle = 'valueTitle',
     ) {
     }
 

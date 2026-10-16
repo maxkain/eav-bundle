@@ -7,7 +7,7 @@ use Maxkain\EavBundle\Contracts\Entity\EavEntityInterface;
 interface EavEntityWithTagsInterface extends EavEntityInterface
 {
     /**
-     * @return iterable<EavTagInterface>
+     * @return EavTagInterface|iterable<EavTagInterface>|null
      */
-    public function getEavTags(string $tagKey): iterable;
+    public function getEavTags(string $tagFqcn): EavTagInterface|iterable|null;
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Maxkain\EavBundle\Bridge\Form;
+namespace Maxkain\EavBundle\Bridge\Symfony\Form;
 
 use Maxkain\EavBundle\Options\EavOptionsInterface;
 

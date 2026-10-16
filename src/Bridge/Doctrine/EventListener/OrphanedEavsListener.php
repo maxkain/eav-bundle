@@ -4,6 +4,7 @@ namespace Maxkain\EavBundle\Bridge\Doctrine\EventListener;
 
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
+use Doctrine\ORM\Events;
 use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\AffectedDataExtractor;
 use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsQueryHandler;
 use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsHandlerInterface;
@@ -19,6 +20,11 @@ class OrphanedEavsListener
         protected OrphanedEavsHandlerInterface $handler,
         protected AffectedDataExtractor $extractor,
     ) {
+    }
+
+    public function setHandler(OrphanedEavsHandlerInterface $handler): void
+    {
+        $this->handler = $handler;
     }
 
     public function isEnabled(): bool
@@ -37,7 +43,7 @@ class OrphanedEavsListener
             return;
         }
 
-        $this->data = $this->extractor->extract($args->getObjectManager()->getUnitOfWork());
+        $this->data = $this->extractor->extract($args->getObjectManager());
     }
 
     public function postFlush(PostFlushEventArgs $args): void
@@ -46,13 +52,17 @@ class OrphanedEavsListener
             return;
         }
 
-        $this->enabled = false;
+        $eventManager = $args->getObjectManager()->getEventManager();
+        $eventManager->removeEventListener(Events::onFlush, $this);
+        $eventManager->removeEventListener(Events::postFlush, $this);
+
         try {
             foreach ($this->data as $eavFqcn => $affectedData) {
                 $this->handler->deleteOrphanedEavs($args->getObjectManager(), $eavFqcn, $affectedData);
             }
         } finally {
-            $this->enabled = true;
+            $eventManager->addEventListener(Events::onFlush, $this);
+            $eventManager->addEventListener(Events::postFlush, $this);
         }
     }
 }

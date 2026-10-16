@@ -2,6 +2,7 @@
 
 namespace Maxkain\EavBundle;
 
+use Doctrine\ORM\Events;
 use Maxkain\EavBundle\Bridge\Doctrine\EventListener\OrphanedEavsListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -15,24 +16,24 @@ class MaxkainEavBundle extends AbstractBundle
         $definition->import('../config/definition.php');
     }
 
-    public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
+    public function loadExtension(array $config, ContainerConfigurator $configurator, ContainerBuilder $container): void
     {
-        $container->import('../config/services.yaml');
+        $configurator->import('../config/services.yaml');
 
 
-        $builder->prependExtensionConfig('twig', [
+        $container->prependExtensionConfig('twig', [
             'paths' => [
                 dirname(__DIR__) . '/templates' => 'Eav',
             ],
         ]);
 
         if ($config['enable_orphaned_eavs_listener']) {
-            $container->services()->get(OrphanedEavsListener::class)
+            $configurator->services()->get(OrphanedEavsListener::class)
                 ->tag('doctrine.event_listener', [
-                    'event' => 'onFlush',
+                    'event' => Events::onFlush,
                 ])
                 ->tag('doctrine.event_listener', [
-                    'event' => 'postFlush',
+                    'event' => Events::postFlush,
                 ])
             ;
         }

@@ -2,7 +2,7 @@
 
 namespace Maxkain\EavBundle\Contracts\Entity;
 
-use Maxkain\EavBundle\Utils\CollectionSetter\CollectionItemIdentityInterface;
+use Maxkain\EavBundle\Inverter\CollectionSetter\CollectionItemIdentityInterface;
 
 interface EavInterface extends CollectionItemIdentityInterface
 {
