@@ -42,12 +42,12 @@ class TagChecker
         EavAttributeInterface $attribute,
         TagOptionsInterface $options
     ): bool {
+        $tagKey = $options->getTagKey() ?? $options->getTagFqcn();;
         if ($attribute instanceof EavAttributeWithTagsInterface
             && $entity instanceof EavEntityWithTagsInterface
-            && !$attribute->isForAllEavTags($options->getTagFqcn())
+            && !$attribute->isForAllEavTags($tagKey)
         ) {
             $tags = [];
-            $tagKey = $options->getTagFqcn();
             $eavTags = $entity->getEavTags($tagKey);
             $eavTags = $this->resolveEntityEavTags($eavTags);
 

@@ -8,7 +8,8 @@ class EavTagOptions implements TagOptionsInterface
         private string $tagFqcn,
         private string $attributeTagFqcn,
         private bool $multipleTags = false,
-        private TagPropertyMappingInterface $propertyMapping = new TagPropertyMapping()
+        private TagPropertyMappingInterface $propertyMapping = new TagPropertyMapping(),
+        private ?string $tagKey = null
     ) {
     }
 
@@ -25,6 +26,17 @@ class EavTagOptions implements TagOptionsInterface
     public function setTagFqcn(string $tagFqcn): static
     {
         $this->tagFqcn = $tagFqcn;
+        return $this;
+    }
+
+    public function getTagKey(): ?string
+    {
+        return $this->tagKey;
+    }
+
+    public function setTagKey(?string $tagKey): static
+    {
+        $this->tagKey = $tagKey;
         return $this;
     }
 

@@ -6,9 +6,7 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Events;
 use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\AffectedDataExtractor;
-use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsQueryHandler;
-use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsHandlerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsCleaner;
 
 class OrphanedEavsListener
 {
@@ -16,15 +14,9 @@ class OrphanedEavsListener
     protected array $data;
 
     public function __construct(
-        #[Autowire(service: OrphanedEavsQueryHandler::class)]
-        protected OrphanedEavsHandlerInterface $handler,
         protected AffectedDataExtractor $extractor,
+        protected OrphanedEavsCleaner $orphanedEavsCleaner
     ) {
-    }
-
-    public function setHandler(OrphanedEavsHandlerInterface $handler): void
-    {
-        $this->handler = $handler;
     }
 
     public function isEnabled(): bool
@@ -58,7 +50,7 @@ class OrphanedEavsListener
 
         try {
             foreach ($this->data as $eavFqcn => $affectedData) {
-                $this->handler->deleteOrphanedEavs($args->getObjectManager(), $eavFqcn, $affectedData);
+                $this->orphanedEavsCleaner->clean($args->getObjectManager(), $eavFqcn, $affectedData);
             }
         } finally {
             $eventManager->addEventListener(Events::onFlush, $this);

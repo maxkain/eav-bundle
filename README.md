@@ -5,10 +5,10 @@
 - [Description](#description)
 - [Installation](#installation)
 - [Creating entities](#creating-entities)
-	- [Attribute](#attribute)
-	- [EAV](#eav)
-	- [Value](#value)
-	- [Main entity](#main-entity)
+  - [Attribute](#attribute)
+  - [EAV](#eav)
+  - [Value](#value)
+  - [Main entity](#main-entity)
 - [EavInverter](#eavinverter)
 - [Validation](#validation)
 - [EavConverter](#eavconverter)
@@ -17,6 +17,7 @@
 - [Query factory](#query-factory)
 - [Usage with EasyAdmin and Forms](#usage-with-easyadmin-and-forms)
 - [Testing and developing](#testing-and-developing)
+  - [Directory structure](#directory-structure)
 - [Demo application](https://github.com/maxkain/eav-demo)
 
 ## Description
@@ -211,16 +212,18 @@ Now you can change your entity attribute values in your services or controllers 
 use Maxkain\EavBundle\Inverter\EavInverterInterface;
 use Maxkain\EavBundle\Inverter\EavMultipleInputItem;
 use Maxkain\EavBundle\Options\EavOptions;
+use Maxkain\EavBundle\AttributeFinder\EavAttributeFinderInterface;
 //...
 
 class MyService
 {
     public function __construct(
         private EavInverterInterface $eavInverter,
+        private EavAttributeFinderInterface $attributeFinder
     ) {
     }
     
-    public myMethod()
+    public function myMethod(): void
     {
         // ...receive your $entity
         
@@ -257,8 +260,11 @@ class MyService
             attributeFqcn: MyAttribute::class,
             valueFqcn: MyValue::class, // if you have enum value
             multiple: true
-        );	
-    
+        );
+        	
+        // find attributes if needed
+        $this->attributeFinder->findAllowed($entity, $options);
+  
         //	and call the inverter:
         $eavInverter = $this->eavInverter;
         $result = $eavInverter->invert($entity, $myItems, $entity->getMyEavs(), $options);
@@ -306,7 +312,7 @@ new EavOptions(
 
 This mapping is needed for database queries. It would be nice to read options from PHP attributes and reflection at container compile time, but there is no such functionality for now. Although, you will rarely need to change it.
 
-To get the list of allowed attributes for entity, to show it to the user, use `findAllowed` method of `AttributeFinder`.
+To get the list of allowed attributes for entity, to show it to the user, use `findAllowed` method of `AttributeFinderInterface`.
 
 ## Validation
 
@@ -459,11 +465,33 @@ That's all, the `Category` is bound.
 
 If you want to include parent's categories attributes, simply, store them all in a dedicated ManyToMany field of your entity and fill the field by the setter of the main category property or by your service, controller, or by doctrine event listener. And don't forget to set EAV property mapping.
 
+### Orphaned EAVs cleaner
+
 The `OrphanedEavsListener` is enabled by default. It works fast, but you can disable it by `enable_orphaned_eavs_listener` config of the bundle or by `setEnabled` method of the listener.
+It checks affected data (attributes, entities) on flush and removes EAVs, which are not needed because of tag condition.
 
 > If you wrap your `flush()` method in transaction and `OrphanedListener` is enabled,
 > then the `postFlush` event handler will be called in the same transaction,
 > so, you may disable `tagCondition` of `EavQueryFactory`, because it doesn't make sense in this case.
+
+If you disable `OrphanedEavsListener`, orphaned EAVs will be cleaned on saving by inverter only.
+Also, you may run `OrphanedEavsCleaner` periodically:
+```php
+use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsCleaner;
+    
+class MyService {
+    public function __construct(
+        private OrphanedEavsCleaner $orphanedEavsCleaner,    
+    ) {
+    }
+    
+    public function clean(): void {
+        // this will clean all orphaned eavs, but you may pass various parameters
+        $this->orphanedEavsCleaner->clean();
+    }
+}
+}    
+```
 
 ## Query factory
 
@@ -537,42 +565,60 @@ If you don't use `EavExpression` and comparison is not '=', then the `:fieldTitl
 You can add the value to select:
 
 ```php
-// attribute id => values
-$myEavFilter = [
-    22 => [212, 220]
-];
+use Maxkain\EavBundle\Bridge\Doctrine\Query\EavQueryFactory;
+use Maxkain\EavBundle\Options\EavOptionsResolverInterface;
+//...
 
-// selects the value or value title (if enum) of attribute 22
-// if there are multiple values, then MIN(:value) is selected by default
-$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions);
-
-// you may customize `select` and `as` expressions
-// `as` expression by default has doctrine's option `HIDDEN`, so, the value is selected, but not hydrated
-// 'attributeName' placeholder generates automatically, but you can change it  
-$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
-    // default values:
-    select: 'MIN(:value)',
-    as: 'HIDDEN :attributeName'
-);
-// the query will be like this:
-// 'SELECT e, (SELECT MIN(:value) FROM ...) AS HIDDEN :attributeName FROM ...'
-
-// get the generated attribute name,
-// it looks like 'attribute_0_22', where 0 is eav options index
-$attribute22Name = $eavQueryFactory->getAttributeName($myEavOptions, 22);
-
-// add order by it as by regular column
-$qb->addOrderBy($attribute22Name, 'ASC');
-
-//or simply use any other attribute name
-$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
-    select: 'MAX(:value)',
-    as: 'HIDDEN myColumn'
-);
-$qb->addOrderBy('myColumn', 'DESC');
-
-// restricts selected values to values from the list $myEavFilter[22]
-$eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions, $myEavFilter[22]);
+class MyService
+{
+    public function __construct(
+        private EavQueryFactory $eavQueryFactory,
+        private EavOptionsResolverInterface $eavOptionsResolver
+    ) {
+    }
+    
+    public function myMethod(): void 
+    {
+        $myEavOptions = $this->eavOptionsResolver->resolve(MyEav::class)
+        
+        // attribute id => values
+        $myEavFilter = [
+            22 => [212, 220]
+        ];
+        
+        // selects the value or value title (if enum) of attribute 22
+        // if there are multiple values, then MIN(:value) is selected by default
+        $eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions);
+        
+        // you may customize `select` and `as` expressions
+        // `as` expression by default has doctrine's option `HIDDEN`, so, the value is selected, but not hydrated
+        // 'attributeName' placeholder generates automatically, but you can change it  
+        $eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
+            // default values:
+            select: 'MIN(:value)',
+            as: 'HIDDEN :attributeName'
+        );
+        // the query will be like this:
+        // 'SELECT e, (SELECT MIN(:value) FROM ...) AS HIDDEN :attributeName FROM ...'
+        
+        // get the generated attribute name,
+        // it looks like 'attribute_0_22', where 0 is eav options index
+        $attribute22Name = $eavQueryFactory->getAttributeName($myEavOptions, 22);
+        
+        // add order by it as by regular column
+        $qb->addOrderBy($attribute22Name, 'ASC');
+        
+        //or simply use any other attribute name
+        $eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions,
+            select: 'MAX(:value)',
+            as: 'HIDDEN myColumn'
+        );
+        $qb->addOrderBy('myColumn', 'DESC');
+        
+        // restricts selected values to values from the list $myEavFilter[22]
+        $eavQueryFactory->addValueSelect($qb, 'e', 22, $myEavOptions, $myEavFilter[22]);    
+    }    
+}
 ```
 
 ## Usage with EasyAdmin and Forms
