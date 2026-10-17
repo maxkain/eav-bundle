@@ -22,7 +22,7 @@
 
 ## Description
 
-The goal of this bundle is to provide the flexible and high performance implementation of EAV (Entity-Attribute-Value) pattern in PHP. You can give the opportunity to the user of your application creating his own attributes and edit them. 
+The goal of this bundle is to provide the flexible and high performance implementation of EAV (Entity-Attribute-Value) pattern in PHP. You can give the opportunity to the user of your application to create his own attributes and edit them. 
 
 Main features:
 
@@ -435,11 +435,13 @@ private bool $forAllTags = false;
 Your `Categoty` should  implement `EavTagInterface`, your `Product` should implement `EavEntityWithTagsInterface` and your attribute should implement `EavAttributeWithTagsInterface`. The method `getEavTags` of your `Product` and `MyAttribute` should look, like this:
 
 ```php
-    public function getEavTags(string $tagFqcn): EavTagInterface|iterable|null
+    public function getEavTags(string $tagKey): EavTagInterface|iterable|null
     {
-        return match ($tagFqcn) {
+        return match ($tagKey) {
             Category::class => $this->category ?? null,
-            Tag::class => $this->tags
+            Tag::class => $this->tags,
+            // if you have many properties with the same tag class
+            'myTagKey' => $this->tags
         };
     }
 ```
@@ -476,6 +478,7 @@ It checks affected data (attributes, entities) on flush and removes EAVs, which 
 
 If you disable `OrphanedEavsListener`, orphaned EAVs will be cleaned on saving by inverter only.
 Also, you may run `OrphanedEavsCleaner` periodically:
+
 ```php
 use Maxkain\EavBundle\Bridge\Doctrine\OrphanedEavs\OrphanedEavsCleaner;
     
@@ -489,8 +492,7 @@ class MyService {
         // this will clean all orphaned eavs, but you may pass various parameters
         $this->orphanedEavsCleaner->clean();
     }
-}
-}    
+}   
 ```
 
 ## Query factory
