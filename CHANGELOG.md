@@ -15,3 +15,4 @@
 - `EavTag` query condition high speed up.
 - `OrphanedEavsCleaner` added. Batch processing and affected data improvements. 
 - Orphaned EAVs removing on invert with `addOnly` added.
+- Or/And EavTag condition option.

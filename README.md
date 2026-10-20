@@ -451,16 +451,39 @@ Your `Categoty` should  implement `EavTagInterface`, your `Product` should imple
 And you need to add options:
 
 ```php
-new EavOptions(
-    // ...
-    tagFqcn: Category::class,
-    attributeTagFqcn: MyTag::class
-    propertyMapping: new PropertyMapping( // If you have different name of your category field
-    	entityTag: 'category', //for ManyToOne
-    	entityTags: 'categories' //for ManyToMany
-    	// and see others...
-    )
-),
+namespace App\Eav;
+
+use Maxkain\EavBundle\Tag\Options\EavTagOptions;
+use Maxkain\EavBundle\Options\PropertyMapping;
+use Maxkain\EavBundle\Tag\Options\TagPropertyMapping;
+//...
+
+class ProductConfigurator implements EavConfiguratorInterface
+{
+    /**
+     * @return array<int|string, EavOptionsInterface>
+     */
+    public function configure(): array
+    {
+        return [
+            new EavOptions(
+                // ...
+                tagOptions: new EavTagOptions(
+                    tagFqcn: Category::class,
+                    attributeTagFqcn: MyTag::class,
+                    
+                    propertyMapping: new TagPropertyMapping(
+                        entityTag: 'category', //for ManyToOne
+                        entityTags: 'categories' //for ManyToMany
+                        // and see others...
+                    )    
+                ),
+                // optionally
+                orTagLogic: false
+            )
+        ]
+    }
+}
 ```
 
 That's all, the `Category` is bound.
