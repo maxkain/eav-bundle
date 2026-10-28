@@ -23,7 +23,7 @@ final class EavFieldFactory
         ?string $formType = null,
         array $formOptions = [],
         array $formEntryOptions = []
-    ): FieldInterface {
+    ): CollectionField {
         $eavOptions = $this->optionsRegistry->resolve($eavOptions);
         $eavOptions->setConvertItemsToArrays(true);
 
